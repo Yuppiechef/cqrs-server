@@ -46,7 +46,8 @@
   [{:db/id (d/tempid :db.part/user)
     :base/uuid (d/squuid)
     :user/name (:name data)
-    :user/age (:age data)}])
+    :user/age (:age data)
+    :user/status :user.status/active}])
 
 ;; :user/update-email
 (defmethod cqrs/process-command :user/update-email [{:keys [data] :as c}]

@@ -42,6 +42,19 @@
 ;; [17592186045422]
 ;; => (map #(d/touch (d/entity (d/db (d/connect datomic-uri)) %)) *1)
 ;; ({:base/uuid #uuid "54d8fc2e-6c1f-4fb6-93f9-bef9536a9f7d", :user/age 31, :user/name "Bob", :db/id 17592186045422})
+;; => (send-command :user/update-email {:uuid #uuid "54d8fc2e-6c1f-4fb6-93f9-bef9536a9f7d" :email "bob@example.com"})
+;; => (send-command :user/disabled {:uuid #uuid "54d8fc2e-6c1f-4fb6-93f9-bef9536a9f7d"})
+;; => (map #(d/touch (d/entity (d/db (d/connect datomic-uri)) %)) (d/q '[:find [?e ...] :where [?e :user/name]] (d/db (d/connect datomic-uri))))
+;; ({:base/uuid #uuid "54d90a89-0880-4f30-bb34-42f29ceb1095", :user/age 31, :user/email "bob@example.com", :user/name "Bob", :user/status :user.status/disabled, :db/id 17592186045422})
+;;
+;; => (send-command :user/pageview {:uuid #uuid "54d90a89-0880-4f30-bb34-42f29ceb1095" :url "http://www.example.com" :render-time 230})
+;; => (send-command :user/pageview {:uuid #uuid "54d90a89-0880-4f30-bb34-42f29ceb1095" :url "http://www.example.com" :render-time 212})
+;; => (send-command :user/pageview {:uuid #uuid "54d90a89-0880-4f30-bb34-42f29ceb1095" :url "http://www.example.com" :render-time 182})
+;; => (map #(d/touch (d/entity (d/db (d/connect datomic-uri)) %)) (d/q '[:find [?e ...] :where [?e :user/name]] (d/db (d/connect datomic-uri))))
+;; ({:base/uuid #uuid "54d90a89-0880-4f30-bb34-42f29ceb1095", :user/age 31, :user/email "bob@example.com", :user/name "Bob", :user/status :user.status/disabled, :user/viewcount 3, :db/id 17592186045422})
+;; => (far/scan dynamodb-cred :events)
+;; [{:date 1423510307575N, :data #<byte[] ...>, :basis-t 1008N, :id "86439637-8f1e-5170-9b23-824486e3506a", :type "user/pageviewed"} {:date 1423510178427N, :data #<byte[] ...>, :basis-t 1005N, :id "c67ccc74-c71c-5578-80ad-924c470f052f", :type "user/email-updated"} {:date 1423510316827N, :data #<byte[] ...>, :basis-t 1010N, :id "08316c9b-3fcd-5a9f-b095-4bf0c1a61a05", :type "user/pageviewed"} {:date 1423510210618N, :data #<byte[] ...>, :basis-t 1007N, :id "46ac00c9-bd7d-5903-91e0-af56d28ef751", :type "user/disabled"} {:date 1423510153513N, :data #<byte[] ...>, :basis-t 1000N, :id "be856c9c-0bf8-5ccc-bec1-bfa0f5a7e983", :type "user/registered"} {:date 1423510312463N, :data #<byte[] ...>, :basis-t 1009N, :id "5c2eb804-1016-5fa3-a868-c01b515f980d", :type "user/pageviewed"}]
+;;
 
 (defn dynamodb-setup [cred]
   (try

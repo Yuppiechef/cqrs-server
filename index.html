@@ -167,7 +167,7 @@ lein repl</pre></div>
 
 <div class="highlight highlight-clojure"><pre>(start)</pre></div>
 
-<p>It should give you a <code>"Setup Complete"</code> message once it's done and ready to start taking commands. Go take a look at the <code>src/cqrs_server/module.clj</code> file and have a look.</p>
+<p>It should give you a <code>"Setup Complete"</code> message once it's done and ready to start taking commands. Go open the <code>src/cqrs_server/module.clj</code> file and have a look.</p>
 
 <h2>
 <a id="playing-around" class="anchor" href="#playing-around" aria-hidden="true"><span class="octicon octicon-link"></span></a>Playing around</h2>
@@ -210,8 +210,8 @@ lein repl</pre></div>
 
 <p>Any part of your system that needs to read can directly consume the aggregate views with no need to interact with the <em>cqrs-server</em>.</p>
 
-<h1>
-<a id="conclusion" class="anchor" href="#conclusion" aria-hidden="true"><span class="octicon octicon-link"></span></a>Conclusion</h1>
+<h2>
+<a id="conclusion" class="anchor" href="#conclusion" aria-hidden="true"><span class="octicon octicon-link"></span></a>Conclusion</h2>
 
 <p>We have shown a functional distillation of CQRS. We've composed various pieces of software to build a solid foundation for a flexible distributed system. <em>cqrs-server</em> provides the basic framework needed for a CQRS-based system.</p>
 

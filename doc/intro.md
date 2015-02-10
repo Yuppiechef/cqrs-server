@@ -115,7 +115,7 @@ After a bit of compiling you should have a REPL waiting, run the following funct
 ```clojure
 (start)
 ```
-It should give you a `"Setup Complete"` message once it's done and ready to start taking commands. Go take a look at the `src/cqrs_server/module.clj` file and have a look.
+It should give you a `"Setup Complete"` message once it's done and ready to start taking commands. Go open the `src/cqrs_server/module.clj` file and have a look.
 
 ## Playing around
 The `module.clj` should give you a feel for roughly how you would add your own logic into the system:
@@ -153,7 +153,7 @@ The astute reader will notice that this discussion has focussed on the Command p
 
 Any part of your system that needs to read can directly consume the aggregate views with no need to interact with the _cqrs-server_.
 
-# Conclusion
+## Conclusion
 
 We have shown a functional distillation of CQRS. We've composed various pieces of software to build a solid foundation for a flexible distributed system. _cqrs-server_ provides the basic framework needed for a CQRS-based system.
 

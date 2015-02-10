@@ -8,7 +8,7 @@ Best to start with the core problem at hand:
 
 > The current relational database is too limiting. We're dropping all sorts of interesting data on the ground because we don't have suitable pigeonholes to put it into.
 
-Any system that has enough interesting interaction happening to it faces this problem. The data that we do end up putting into our database tends to all be designed slightly inconsistently. Then it's incredibly risky to change down the line because it gets treated as our _[system of record](http://en.wikipedia.org/wiki/System_of_record)_.
+Any system that has enough interesting interaction happening to it faces this problem. The data that we do end up putting into our database tends to inconsistent design. It is then risky to change down the line because it gets treated as our _[system of record](http://en.wikipedia.org/wiki/System_of_record)_.
 
 To this end, we've been doing research into _Event Sourcing_ (ES). This led to _Command/Query Responsibility Segregation_ (CQRS) and touched on the area of _Domain Driven Design_ (DDD).
 
@@ -16,22 +16,22 @@ To this end, we've been doing research into _Event Sourcing_ (ES). This led to _
 
 An event is a past tense archive record about what has happened. Examples are `UserLoggedIn`, `AddedToCart`, `CheckedOut`, `OrderShipped`, `OrderDelivered` and `ProductFaultLogged`.
 
-The idea is that if you maintain a list of these events, you have a canonical source that you can build arbitrary aggregate views from. You can completely obviate the need for cache invalidation if you treat these events as a stream and update all the various sources as events filter through.
+The idea is that if you maintain a list of these events, you have a canonical source that you can build arbitrary aggregate views from. You can completely obviate the need for cache invalidation - Treat the events as a stream and update all the various sources as events filter through.
 
-The past tense is very important to distinguish Events from Commands like `UserLogin` or `AddToCart`. The Commands imply that the user is attempting an action and that the system can still make some kind of decision, validation or even refusal to process. This is not the case in past tense events as you cannot mutate history.
+The past tense is important to distinguish Events from Commands like `UserLogin` or `AddToCart`. A Command implies that the user is attempting an action - the system can still make some kind of decision, validation or even refusal to process. This is not the case in past tense events as you cannot mutate history.
 
-You store the list of events into what is called an Event Store and use that as the canonical state of the system. You derive other views in other shapes that are optimized for reading. 
+You store the list of events into an Event Store and use that as the canonical state of the system. You derive views in other shapes optimized for reading. 
 
-A key benefit is that you can introduce new derived views. Simply leverage existing events and populate the views with historical data as if they were always there.
+A key benefit is that you can introduce new derived views. Leverage existing events and populate the views with historical data as if they were always there.
 
 
 ## Introduction to Command/Query Responsibility Segregation
 
-Most of the reading material out there will describe CQRS through very Object Oriented lenses and introduce all sorts of management layers, a lot to do with command responsibility managers and logical aggregate objects. We've distilled the essence of CQRS into:
+Most of the reading material will describe CQRS through Object Oriented lenses. This introduces all sorts complexity - a lot to do with command responsibility managers and logical aggregate objects. We've distilled the essence of CQRS into:
 
 > "Separate your writes and queries"
 
-This implies that you create an archive in the most convenient form for your writes and a separate storage convenient for reads.
+This implies that you create an archive in the best form for writes and a separate storage convenient for reads.
 
 While we're distilling things, let's look at some useful word definitions (courtesy of [Merriam Webster Dictionary](http://www.merriam-webster.com)):
 
@@ -41,9 +41,9 @@ While we're distilling things, let's look at some useful word definitions (court
 >
 > **Aggregate (adj)**: formed by the collection of units or particles into a body, mass, or amount
 
-The Command has a very distinct role in that it can make decisions about what events end up happening. `RegisterUser`, for instance, might produce a `UserRegistered` or `UserRegistrationFailed` event depending on the logic inside the command.
+The Command has a very distinct role in that it can make decisions about what events end up happening. `RegisterUser`, for example, might produce a `UserRegistered` or `UserRegistrationFailed` event.
 
-The impedance mismatch generally associated with relational databases diminishes severely when you've split your database into a write-optimized archive and various read-optimized aggregates.
+The impedance mismatch usually associated with relational databases diminishes when you've split your database into a write-optimized archive and various read-optimized aggregates.
 
 ## Implementation specifics
 
@@ -53,13 +53,13 @@ The impedance mismatch generally associated with relational databases diminishes
 
 Onyx is a masterless distributed computation system. Effectively becoming the glue of the system and managing connections between the components.
 
-It directs an arbitrary number of peers and allows the cqrs-server to scale out by simply adding new nodes. The configuration is also incredibly flexible, making it simple to replace Kafka with another queueing mechanism or introduce more complex batch jobs.
+It directs an arbitrary number of peers and allows the cqrs-server to scale out by adding new nodes. The configuration is also flexible. It's simple to replace Kafka with another queueing mechanism or introduce more complex batch jobs.
 
-The nature of Onyx is that it's a distributed system. We have to assume that duplicate Commands and Events will be processed so we need to ensure that side-effecting changes are made idempotently. This is achieved in _cqrs-server_ by doing a few things under the hood:
+The nature of Onyx is that it's a distributed system. Thus, we have to assume that duplicate Commands and Events will process. We need to ensure that side-effecting changes are idempotent. _cqrs-server_ achieves this by doing a few things under the hood:
 
  - Attach a uuid to the command before sending it into the queue
  - Attach a current basis-t of the datomic database value as at command generation
- - Derive uuids for the events based on the command uuid (v5 uuids) so that the event uuids are fully deterministic
+ - Derive uuids for the events based on the command uuid (v5 uuids) so that the event uuids are deterministic
  - Ensure that the event store takes care of duplicate event writes
  - Ensure that the aggregate store treats duplicate event transactions as no-ops
 
@@ -69,30 +69,30 @@ Onyx plays the most crucial part in making cqrs-server as flexible and concise a
 
 Kafka is a high-throughput, log-based publish-subscribe messaging system.
 
-It holds on to the messages after they have been consumed. This makes it well suited for failure recovery by replaying the recent commands or events. In the diagram above, the Command Queue and the Event Queue are implemented in Kafka queues.
+It holds on to the messages after consumption. This makes it well suited for failure recovery by replaying the recent commands or events. In the diagram above Kafka is the implementation of the Command and Event queues.
 
 ### Amazon DynamoDB
 
-DynamoDB is a flexible and scalable K/V store which we're using as the Event Store. It doesn't really matter where this goes as long as it's reliable and allows you to query a subset of the events by a given date range.
+DynamoDB is a flexible and scalable K/V store which we're using as the Event Store. It doesn't matter where this goes as long as it's reliable and allows you to query a subset of the events by a given date range.
 
-To take care of duplicates, we simply rewrite the same event into Dynamo using the event uuid as a key. This will overwrite the duplicate event, but won't change anything.
+To take care of duplicates, we rewrite the same event into Dynamo using the event uuid as a key. This will overwrite the duplicate event, but won't change anything.
 
 ### Datomic
 
-Datomic is a fully transactional, distributed Entity, Attribute, Value, Tx (EAVT) database. It provides expressive querying facilities, has a single-node transactor and near-arbitrary read scalability.
+Datomic is a transactional, distributed Entity, Attribute, Value, Tx (EAVT) database. It provides expressive querying facilities, has a single-node transactor and near-arbitrary read scalability.
 
 The single-node transactor is key to de-duplicating the event aggregation. We created an `:idempotent-tx` transactor function that checks:
 
  - If a tx is _already_ tagged with the given `:event/uuid`, convert tx to a no-op
  - If a tx is _not_ tagged, tag this tx with the `:event/uuid` and commit.
 
-Another concern is that a duplicated command could produce a different set of events when one set of aggregates reaches the transactor before the other command gets to evaluate. 
+Another concern is that of duplicated commands. A command could produce a different set of events when one set of aggregates reaches the transactor before it gets to run.
 
-To prevent inconsistent results, we tag the command with the current `basis-t`. This roots our command to a specific immutable database value.  The command should then always evaluate to the same result provided that it makes decisions based on the Datomic aggregate as of `basis-t`.
+To prevent inconsistent results, we tag the command with the current `basis-t`. This roots our command to a specific immutable database value.  The command should then always evaluate to the same result if it makes decisions based on the Datomic aggregate as of `basis-t`.
 
 ## Running cqrs-server
 
-We've covered some of the larger design decisions, now let's delve into the cqrs-server specific implementation.
+We've covered some of the larger design decisions. Let's delve into the _cqrs-server_ specific implementation.
 
 First, download and unzip dynamodb local from <http://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Tools.DynamoDBLocal.html> and run:
 

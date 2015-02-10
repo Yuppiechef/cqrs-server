@@ -32,84 +32,204 @@
     <div id="main_content_wrap" class="outer">
       <section id="main_content" class="inner">
         <h1>
-<a id="cqrs-server" class="anchor" href="#cqrs-server" aria-hidden="true"><span class="octicon octicon-link"></span></a>cqrs-server</h1>
+<a id="introduction-to-cqrs-server" class="anchor" href="#introduction-to-cqrs-server" aria-hidden="true"><span class="octicon octicon-link"></span></a>Introduction to <em>cqrs-server</em>
+</h1>
 
-<p>An opinionated CQRS/ES implementation using Onyx, Datomic, DynamoDB, Kafka and Zookeeper.</p>
-
-<h2>
-<a id="usage" class="anchor" href="#usage" aria-hidden="true"><span class="octicon octicon-link"></span></a>Usage</h2>
-
-<p>A quick guide to get started :</p>
-
-<h3>
-<a id="install-dynamodb-local" class="anchor" href="#install-dynamodb-local" aria-hidden="true"><span class="octicon octicon-link"></span></a>Install dynamodb local</h3>
-
-<p>Get dynamodb local from: <a href="http://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Tools.DynamoDBLocal.html">http://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Tools.DynamoDBLocal.html</a></p>
-
-<p>And then run:</p>
-
-<pre><code>java -Djava.library.path=./DynamoDBLocal_lib -jar DynamoDBLocal.jar
-</code></pre>
-
-<h3>
-<a id="kafka--zookeeper" class="anchor" href="#kafka--zookeeper" aria-hidden="true"><span class="octicon octicon-link"></span></a>Kafka &amp; Zookeeper</h3>
-
-<p>Download and extract Kafka: <a href="http://kafka.apache.org/downloads.html">http://kafka.apache.org/downloads.html</a></p>
-
-<p>Run both these (probably in separate terminals)</p>
-
-<pre><code>bin/zookeeper-server-start.sh config/zookeeper.properties
-bin/kafka-server-start.sh config/server.properties
-</code></pre>
-
-<p>Then clone this repo and fire it up!</p>
-
-<pre><code>lein repl
-
-=&gt; (start)
-"Setup complete"
-=&gt; (send-command :user/register {:name "Bob" :age 31})
-nil
-=&gt; (d/q '[:find [?e ...] :where [?e :user/name]] (d/db (d/connect datomic-uri)))
-[17592186045422]
-=&gt; (map #(d/touch (d/entity (d/db (d/connect datomic-uri)) %)) *1)
-({:base/uuid #uuid "54d8fc2e-6c1f-4fb6-93f9-bef9536a9f7d", :user/age 31, :user/name "Bob", :db/id 17592186045422})
-</code></pre>
-
-<p>Now we have a user in the system, let's fill out his profile a bit:</p>
-
-<pre><code>=&gt; (send-command :user/update-email {:uuid #uuid "54d8fc2e-6c1f-4fb6-93f9-bef9536a9f7d" :email "bob@example.com"})
-=&gt; (send-command :user/disabled {:uuid #uuid "54d8fc2e-6c1f-4fb6-93f9-bef9536a9f7d"})
-=&gt; (map #(d/touch (d/entity (d/db (d/connect datomic-uri)) %)) (d/q '[:find [?e ...] :where [?e :user/name]] (d/db (d/connect datomic-uri))))
-({:base/uuid #uuid "54d90a89-0880-4f30-bb34-42f29ceb1095", :user/age 31, :user/email "bob@example.com", :user/name "Bob", :user/status :user.status/disabled, :db/id 17592186045422})
-</code></pre>
-
-<p>We can also send some pageviews and see how it updates the viewcount on the user (a possibly useful aggregate):</p>
-
-<pre><code>=&gt; (send-command :user/pageview {:uuid #uuid "54d90a89-0880-4f30-bb34-42f29ceb1095" :url "http://www.example.com" :render-time 230})
-=&gt; (send-command :user/pageview {:uuid #uuid "54d90a89-0880-4f30-bb34-42f29ceb1095" :url "http://www.example.com" :render-time 212})
-=&gt; (send-command :user/pageview {:uuid #uuid "54d90a89-0880-4f30-bb34-42f29ceb1095" :url "http://www.example.com" :render-time 182})
-=&gt; (map #(d/touch (d/entity (d/db (d/connect datomic-uri)) %)) (d/q '[:find [?e ...] :where [?e :user/name]] (d/db (d/connect datomic-uri))))
-({:base/uuid #uuid "54d90a89-0880-4f30-bb34-42f29ceb1095", :user/age 31, :user/email "bob@example.com", :user/name "Bob", :user/status :user.status/disabled, :user/viewcount 3, :db/id 17592186045422})
-</code></pre>
-
-<p>Then lets have a look at the events:</p>
-
-<pre><code>=&gt; (far/scan dynamodb-cred :events)
-[{:date 1423510307575N, :data #&lt;byte[] ...&gt;, :basis-t 1008N, :id "86439637-8f1e-5170-9b23-824486e3506a", :type "user/pageviewed"} {:date 1423510178427N, :data #&lt;byte[] ...&gt;, :basis-t 1005N, :id "c67ccc74-c71c-5578-80ad-924c470f052f", :type "user/email-updated"} {:date 1423510316827N, :data #&lt;byte[] ...&gt;, :basis-t 1010N, :id "08316c9b-3fcd-5a9f-b095-4bf0c1a61a05", :type "user/pageviewed"} {:date 1423510210618N, :data #&lt;byte[] ...&gt;, :basis-t 1007N, :id "46ac00c9-bd7d-5903-91e0-af56d28ef751", :type "user/disabled"} {:date 1423510153513N, :data #&lt;byte[] ...&gt;, :basis-t 1000N, :id "be856c9c-0bf8-5ccc-bec1-bfa0f5a7e983", :type "user/registered"} {:date 1423510312463N, :data #&lt;byte[] ...&gt;, :basis-t 1009N, :id "5c2eb804-1016-5fa3-a868-c01b515f980d", :type "user/pageviewed"}]
-</code></pre>
-
-<p>The actual data is fressian encoded so that there's no pain with the transformation of clojure data structures.</p>
-
-<p>NOTE: If you do actually use this for user aggregates and authentication, remember to at least bcrypt your passwords.
-Be very aware that sensitive data is written to multiple places in this system: the kafka queues, the dynamo event source and the datomic aggregate. This is a particularly important consideration for things like credit card details and passwords.</p>
+<p>An opinionated CQRS/ES implementation using <a href="https://github.com/MichaelDrogalis/onyx">Onyx</a>, <a href="http://www.datomic.com/">Datomic</a>, <a href="http://aws.amazon.com/dynamodb/">DynamoDB</a>, <a href="http://kafka.apache.org/">Kafka</a> and <a href="http://zookeeper.apache.org/">Zookeeper</a>.</p>
 
 <h2>
-<a id="license" class="anchor" href="#license" aria-hidden="true"><span class="octicon octicon-link"></span></a>License</h2>
+<a id="the-problem" class="anchor" href="#the-problem" aria-hidden="true"><span class="octicon octicon-link"></span></a>The problem</h2>
 
-<p>Copyright © 2015 Yuppiechef Online (Pty) Ltd.</p>
+<p>Best to start with the core problem at hand:</p>
 
-<p>Distributed under The MIT License (MIT) - See LICENSE.txt</p>
+<blockquote>
+<p>The current relational database is too limiting. We're dropping all sorts of interesting data on the ground because we don't have suitable pigeonholes to put it into.</p>
+</blockquote>
+
+<p>Any system that has enough interesting interaction happening to it faces this problem. The data that we do end up putting into our database tends to inconsistent design. It is then risky to change down the line because it gets treated as our <em><a href="http://en.wikipedia.org/wiki/System_of_record">system of record</a></em>.</p>
+
+<p>To this end, we've been doing research into <em>Event Sourcing</em> (ES). This led to <em>Command/Query Responsibility Segregation</em> (CQRS) and touched on the area of <em>Domain Driven Design</em> (DDD).</p>
+
+<h2>
+<a id="introduction-to-event-sourcing-es" class="anchor" href="#introduction-to-event-sourcing-es" aria-hidden="true"><span class="octicon octicon-link"></span></a>Introduction to Event Sourcing (ES)</h2>
+
+<p>An event is a past tense archive record about what has happened. Examples are <code>UserLoggedIn</code>, <code>AddedToCart</code>, <code>CheckedOut</code>, <code>OrderShipped</code>, <code>OrderDelivered</code> and <code>ProductFaultLogged</code>.</p>
+
+<p>The idea is that if you maintain a list of these events, you have a canonical source that you can build arbitrary aggregate views from. You can completely obviate the need for cache invalidation - Treat the events as a stream and update all the various sources as events filter through.</p>
+
+<p>The past tense is important to distinguish Events from Commands like <code>UserLogin</code> or <code>AddToCart</code>. A Command implies that the user is attempting an action - the system can still make some kind of decision, validation or even refusal to process. This is not the case in past tense events as you cannot mutate history.</p>
+
+<p>You store the list of events into an Event Store and use that as the canonical state of the system. You derive views in other shapes optimized for reading. </p>
+
+<p>A key benefit is that you can introduce new derived views. Leverage existing events and populate the views with historical data as if they were always there.</p>
+
+<h2>
+<a id="introduction-to-commandquery-responsibility-segregation" class="anchor" href="#introduction-to-commandquery-responsibility-segregation" aria-hidden="true"><span class="octicon octicon-link"></span></a>Introduction to Command/Query Responsibility Segregation</h2>
+
+<p>Most of the reading material will describe CQRS through Object Oriented lenses. This introduces all sorts complexity - a lot to do with command responsibility managers and logical aggregate objects. We've distilled the essence of CQRS into:</p>
+
+<blockquote>
+<p>"Separate your writes and queries"</p>
+</blockquote>
+
+<p>This implies that you create an archive in the best form for writes and a separate storage convenient for reads.</p>
+
+<p>While we're distilling things, let's look at some useful word definitions (courtesy of <a href="http://www.merriam-webster.com">Merriam Webster Dictionary</a>):</p>
+
+<blockquote>
+<p><strong>Command (verb)</strong>: to direct authoritatively</p>
+
+<p><strong>Query (noun)</strong>: a question or a request for information about something</p>
+
+<p><strong>Aggregate (adj)</strong>: formed by the collection of units or particles into a body, mass, or amount</p>
+</blockquote>
+
+<p>The Command has a very distinct role in that it can make decisions about what events end up happening. <code>RegisterUser</code>, for example, might produce a <code>UserRegistered</code> or <code>UserRegistrationFailed</code> event.</p>
+
+<p>The impedance mismatch usually associated with relational databases diminishes when you've split your database into a write-optimized archive and various read-optimized aggregates.</p>
+
+<h2>
+<a id="implementation-specifics" class="anchor" href="#implementation-specifics" aria-hidden="true"><span class="octicon octicon-link"></span></a>Implementation specifics</h2>
+
+<p><img src="https://www.lucidchart.com/publicSegments/view/54da0b1b-bf78-4ec6-8256-78a10a00816a/image.png" alt="CQRS Diagram"></p>
+
+<h3>
+<a id="onyx" class="anchor" href="#onyx" aria-hidden="true"><span class="octicon octicon-link"></span></a>Onyx</h3>
+
+<p>Onyx is a masterless distributed computation system. Effectively becoming the glue of the system and managing connections between the components.</p>
+
+<p>It directs an arbitrary number of peers and allows the <em>cqrs-server</em> to scale out by adding new nodes. The configuration is also flexible. It's simple to replace Kafka with another queueing mechanism or introduce more complex batch jobs.</p>
+
+<p>The nature of Onyx is that it's a distributed system. Thus, we have to assume that duplicate Commands and Events will process. We need to ensure that side-effecting changes are idempotent. <em>cqrs-server</em> achieves this by doing a few things under the hood:</p>
+
+<ul>
+<li>Attach a uuid to the command before sending it into the queue</li>
+<li>Attach a current basis-t of the datomic database value as at command generation</li>
+<li>Derive uuids for the events based on the command uuid (v5 uuids) so that the event uuids are deterministic</li>
+<li>Ensure that the event store takes care of duplicate event writes</li>
+<li>Ensure that the aggregate store treats duplicate event transactions as no-ops</li>
+</ul>
+
+<p>Onyx plays the most crucial part in making <em>cqrs-server</em> as flexible and concise as it is.</p>
+
+<h3>
+<a id="apache-kafka" class="anchor" href="#apache-kafka" aria-hidden="true"><span class="octicon octicon-link"></span></a>Apache Kafka</h3>
+
+<p>Kafka is a high-throughput, log-based publish-subscribe messaging system.</p>
+
+<p>It holds on to the messages after consumption. This makes it well suited for failure recovery by replaying the recent commands or events. In the diagram above Kafka is the implementation of the Command and Event queues.</p>
+
+<h3>
+<a id="amazon-dynamodb" class="anchor" href="#amazon-dynamodb" aria-hidden="true"><span class="octicon octicon-link"></span></a>Amazon DynamoDB</h3>
+
+<p>DynamoDB is a flexible and scalable K/V store which we're using as the Event Store. It doesn't matter where this goes as long as it's reliable and allows you to query a subset of the events by a given date range.</p>
+
+<p>To take care of duplicates, we rewrite the same event into Dynamo using the event uuid as a key. This will overwrite the duplicate event, but won't change anything.</p>
+
+<h3>
+<a id="datomic" class="anchor" href="#datomic" aria-hidden="true"><span class="octicon octicon-link"></span></a>Datomic</h3>
+
+<p>Datomic is a transactional, distributed Entity, Attribute, Value, Tx (EAVT) database. It provides expressive querying facilities, has a single-node transactor and near-arbitrary read scalability.</p>
+
+<p>The single-node transactor is key to de-duplicating the event aggregation. We created an <code>:idempotent-tx</code> transactor function that checks:</p>
+
+<ul>
+<li>If a tx is <em>already</em> tagged with the given <code>:event/uuid</code>, convert tx to a no-op</li>
+<li>If a tx is <em>not</em> tagged, tag this tx with the <code>:event/uuid</code> and commit.</li>
+</ul>
+
+<p>Another concern is that of duplicated commands. A command could produce a different set of events when one set of aggregates reaches the transactor before it gets to run.</p>
+
+<p>To prevent inconsistent results, we tag the command with the current <code>basis-t</code>. This roots our command to a specific immutable database value.  The command should then always evaluate to the same result if it makes decisions based on the Datomic aggregate as of <code>basis-t</code>.</p>
+
+<h2>
+<a id="running-cqrs-server" class="anchor" href="#running-cqrs-server" aria-hidden="true"><span class="octicon octicon-link"></span></a>Running <em>cqrs-server</em>
+</h2>
+
+<p>We've covered some of the larger design decisions. Let's delve into the <em>cqrs-server</em> specific implementation.</p>
+
+<p>First, download and unzip dynamodb local from <a href="http://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Tools.DynamoDBLocal.html">http://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Tools.DynamoDBLocal.html</a> and run:</p>
+
+<div class="highlight highlight-bash"><pre>java -Djava.library.path=./DynamoDBLocal_lib -jar DynamoDBLocal.jar</pre></div>
+
+<p>Next, download Kafka from <a href="http://kafka.apache.org/downloads.html">http://kafka.apache.org/downloads.html</a>, unzip and run both:</p>
+
+<div class="highlight highlight-bash"><pre>bin/zookeeper-server-start.sh config/zookeeper.properties
+bin/kafka-server-start.sh config/server.properties</pre></div>
+
+<p>Finally, clone <em>cqrs-server</em> and run:</p>
+
+<div class="highlight highlight-bash"><pre>git clone https://github.com/Yuppiechef/cqrs-server.git
+<span class="pl-s3">cd</span> cqrs-server
+lein repl</pre></div>
+
+<p>After a bit of compiling you should have a REPL waiting, run the following function:</p>
+
+<div class="highlight highlight-clojure"><pre>(start)</pre></div>
+
+<p>It should give you a <code>"Setup Complete"</code> message once it's done and ready to start taking commands. Go take a look at the <code>src/cqrs_server/module.clj</code> file and have a look.</p>
+
+<h2>
+<a id="playing-around" class="anchor" href="#playing-around" aria-hidden="true"><span class="octicon octicon-link"></span></a>Playing around</h2>
+
+<p>The <code>module.clj</code> should give you a feel for roughly how you would add your own logic into the system:</p>
+
+<ul>
+<li>Define an aggregate schema for datomic</li>
+<li>Install the command schema's </li>
+<li>Implement <code>cqrs/process-command</code> for each command</li>
+<li>Implement <code>cqrs/aggregate-event</code> for each event</li>
+</ul>
+
+<p><code>cqrs/aggregate-event</code> is optional. You will notice that there is not aggregation for the <code>:user/register-failed</code> event. This will still record the event in Dynamo, but have no read view.</p>
+
+<p><em><strong>Quick aside</strong>: For convenience, we will be using the <code>=&gt;</code> in the samples below to show the REPL prompt and prefix the result of the calls with <code>;;</code></em></p>
+
+<p>Back in your REPL, try register a user and check that he exists:</p>
+
+<div class="highlight highlight-clojure"><pre>=&gt; (send-command <span class="pl-c1">:user/register</span> {<span class="pl-c1">:name</span> <span class="pl-s1"><span class="pl-pds">"</span>Bob<span class="pl-pds">"</span></span> <span class="pl-c1">:age</span> <span class="pl-c1">31</span>})</pre></div>
+
+<p>This will fire off the user registration - check that it worked:</p>
+
+<div class="highlight highlight-clojure"><pre>=&gt; (d/q '[<span class="pl-c1">:find</span> [?e ...] <span class="pl-c1">:where</span> [?e <span class="pl-c1">:user/name</span>]] (d/db (d/connect datomic-uri)))
+<span class="pl-c">;; [17592186045422]</span>
+=&gt; (map #(d/touch (d/entity (d/db (d/connect datomic-uri)) %)) *<span class="pl-c1">1</span>)
+<span class="pl-c">;; ({:base/uuid #uuid "54d8fc2e-6c1f-4fb6-93f9-bef9536a9f7d", :user/age 31, :user/name "Bob", :db/id 17592186045422})</span></pre></div>
+
+<p>You can then check your dynamodb event store:</p>
+
+<div class="highlight highlight-clojure"><pre>=&gt; (far/scan dynamodb-cred <span class="pl-c1">:events</span>)
+<span class="pl-c">;; [{:date 1423510153513N, :data #&lt;byte[] ...&gt;, :basis-t 1000N, :id "be856c9c-0bf8-5ccc-bec1-bfa0f5a7e983", :type "user/registered"}]</span></pre></div>
+
+<p>You can go ahead and play around with sending the other commands in the <code>module.clj</code> and see how they affect things. Also try create new commands and event aggregators - there's not much to it.</p>
+
+<h2>
+<a id="wheres-my-query" class="anchor" href="#wheres-my-query" aria-hidden="true"><span class="octicon octicon-link"></span></a>Where's my query?</h2>
+
+<p>The astute reader will notice that this discussion has focussed on the Command part of CQRS and not so much on the Query part. This is because once you have your aggregate view, you're done.</p>
+
+<p>Any part of your system that needs to read can directly consume the aggregate views with no need to interact with the <em>cqrs-server</em>.</p>
+
+<h1>
+<a id="conclusion" class="anchor" href="#conclusion" aria-hidden="true"><span class="octicon octicon-link"></span></a>Conclusion</h1>
+
+<p>We have shown a functional distillation of CQRS. We've composed various pieces of software to build a solid foundation for a flexible distributed system. <em>cqrs-server</em> provides the basic framework needed for a CQRS-based system.</p>
+
+<h2>
+<a id="further-reading" class="anchor" href="#further-reading" aria-hidden="true"><span class="octicon octicon-link"></span></a>Further Reading</h2>
+
+<p>Some related reading that influenced this design, in no particular order:</p>
+
+<ul>
+<li><a href="http://en.wikipedia.org/wiki/Command-query_separation">CQS on Wikipedia</a></li>
+<li><a href="https://cqrs.files.wordpress.com/2010/11/cqrs_documents.pdf">CQRS Documents by Greg Young</a></li>
+<li><a href="http://martinfowler.com/bliki/CommandQuerySeparation.html">Martin Fowler: Command Query Separation</a></li>
+<li><a href="http://docs.geteventstore.com/introduction/event-sourcing-basics/">Event Sourcing Basics</a></li>
+<li><a href="http://danielwestheide.com/talks/flatmap2013/slides/index.html">Event Sourcing for Functional Programmers</a></li>
+<li><a href="http://martinfowler.com/eaaDev/EventSourcing.html">Martin Fowler: Event Sourcing</a></li>
+<li><a href="http://cqrs.nu/tutorial/cs/01-design">DDD, Event Sourcing, and CQRS Tutorial: design</a></li>
+<li><a href="http://msdn.microsoft.com/en-us/library/jj554200.aspx">CQRS Journey</a></li>
+</ul>
       </section>
     </div>
 

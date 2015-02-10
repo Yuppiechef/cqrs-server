@@ -118,7 +118,7 @@ After a bit of compiling you should have a REPL waiting, run the following funct
 It should give you a `"Setup Complete"` message once it's done and ready to start taking commands. Go take a look at the `src/cqrs_server/module.clj` file and have a look.
 
 ## Playing around
-The `module.clj` should give you a feel for roughly how you wouldd add your own logic into the system:
+The `module.clj` should give you a feel for roughly how you would add your own logic into the system:
  - Define an aggregate schema for datomic
  - Install the command schema's 
  - Implement `cqrs/process-command` for each command
@@ -126,7 +126,7 @@ The `module.clj` should give you a feel for roughly how you wouldd add your own 
 
 `cqrs/aggregate-event` is optional. You will notice that there is not aggregation for the `:user/register-failed` event. This will still record the event in Dynamo, but have no read view.
 
-_**Quick aside**: For convenience, we will be using the `=>` in the samples below to show the repl prompt and prefix the result of the calls with `;;`_
+_**Quick aside**: For convenience, we will be using the `=>` in the samples below to show the REPL prompt and prefix the result of the calls with `;;`_
 
 Back in your REPL, try register a user and check that he exists:
 ```clojure

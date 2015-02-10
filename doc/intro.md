@@ -1,4 +1,4 @@
-# Introduction to cqrs-server
+# Introduction to _cqrs-server_
 
 An opinionated CQRS/ES implementation using [Onyx](https://github.com/MichaelDrogalis/onyx), [Datomic](http://www.datomic.com/), [DynamoDB](http://aws.amazon.com/dynamodb/), [Kafka](http://kafka.apache.org/) and [Zookeeper](http://zookeeper.apache.org/).
 
@@ -53,7 +53,7 @@ The impedance mismatch usually associated with relational databases diminishes w
 
 Onyx is a masterless distributed computation system. Effectively becoming the glue of the system and managing connections between the components.
 
-It directs an arbitrary number of peers and allows the cqrs-server to scale out by adding new nodes. The configuration is also flexible. It's simple to replace Kafka with another queueing mechanism or introduce more complex batch jobs.
+It directs an arbitrary number of peers and allows the _cqrs-server_ to scale out by adding new nodes. The configuration is also flexible. It's simple to replace Kafka with another queueing mechanism or introduce more complex batch jobs.
 
 The nature of Onyx is that it's a distributed system. Thus, we have to assume that duplicate Commands and Events will process. We need to ensure that side-effecting changes are idempotent. _cqrs-server_ achieves this by doing a few things under the hood:
 
@@ -63,7 +63,7 @@ The nature of Onyx is that it's a distributed system. Thus, we have to assume th
  - Ensure that the event store takes care of duplicate event writes
  - Ensure that the aggregate store treats duplicate event transactions as no-ops
 
-Onyx plays the most crucial part in making cqrs-server as flexible and concise as it is.
+Onyx plays the most crucial part in making _cqrs-server_ as flexible and concise as it is.
 
 ### Apache Kafka
 
@@ -90,7 +90,7 @@ Another concern is that of duplicated commands. A command could produce a differ
 
 To prevent inconsistent results, we tag the command with the current `basis-t`. This roots our command to a specific immutable database value.  The command should then always evaluate to the same result if it makes decisions based on the Datomic aggregate as of `basis-t`.
 
-## Running cqrs-server
+## Running _cqrs-server_
 
 We've covered some of the larger design decisions. Let's delve into the _cqrs-server_ specific implementation.
 
@@ -105,7 +105,7 @@ Next, download Kafka from <http://kafka.apache.org/downloads.html>, unzip and ru
 bin/zookeeper-server-start.sh config/zookeeper.properties
 bin/kafka-server-start.sh config/server.properties
 ```
-Finally, clone cqrs-server and run:
+Finally, clone _cqrs-server_ and run:
 ```bash
 git clone https://github.com/Yuppiechef/cqrs-server.git
 cd cqrs-server
@@ -118,11 +118,15 @@ After a bit of compiling you should have a REPL waiting, run the following funct
 It should give you a `"Setup Complete"` message once it's done and ready to start taking commands. Go take a look at the `src/cqrs_server/module.clj` file and have a look.
 
 ## Playing around
-The `module.clj` should give you a feel for roughly how you wouldd add your own logic into the system. Define an aggregate schema for datomic, install the command schema's and implement the `cqrs/process-command` and `cqrs/aggregate-event` multimethods for each of your commands and events respectively.
+The `module.clj` should give you a feel for roughly how you wouldd add your own logic into the system:
+ - Define an aggregate schema for datomic
+ - Install the command schema's 
+ - Implement `cqrs/process-command` for each command
+ - Implement `cqrs/aggregate-event` for each event
 
 `cqrs/aggregate-event` is optional. You will notice that there is not aggregation for the `:user/register-failed` event. This will still record the event in Dynamo, but have no read view.
 
-_**Quick aside**: For convenience, we will be using the `=>` in the samples below to indicate the repl prompt and prefix the result of the calls with `;;`_
+_**Quick aside**: For convenience, we will be using the `=>` in the samples below to show the repl prompt and prefix the result of the calls with `;;`_
 
 Back in your REPL, try register a user and check that he exists:
 ```clojure
@@ -145,13 +149,13 @@ You can go ahead and play around with sending the other commands in the `module.
 
 ## Where's my query?
 
-The astute reader will notice that this discussion has primarily focussed on the Command part of CQRS and not so much on the Query part. This is because once you have your aggregate view, you're done.
+The astute reader will notice that this discussion has focussed on the Command part of CQRS and not so much on the Query part. This is because once you have your aggregate view, you're done.
 
-Any part of your system that needs to read can consume the aggregate views directly with no need to interact with the cqrs-server.
+Any part of your system that needs to read can directly consume the aggregate views with no need to interact with the _cqrs-server_.
 
 # Conclusion
 
-We have shown a functional distillation of CQRS. We've composed various pieces of software to build a solid foundation for a flexible distributed system.
+We have shown a functional distillation of CQRS. We've composed various pieces of software to build a solid foundation for a flexible distributed system. _cqrs-server_ provides the basic framework needed for a CQRS-based system.
 
 ## Further Reading
 Some related reading that influenced this design, in no particular order:

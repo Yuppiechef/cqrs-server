@@ -47,7 +47,7 @@ The impedance mismatch usually associated with relational databases diminishes w
 
 ## Implementation specifics
 
-![CQRS Diagram](https://www.lucidchart.com/publicSegments/view/54da0b1b-bf78-4ec6-8256-78a10a00816a/image.png)
+![CQRS Diagram](https://www.lucidchart.com/publicSegments/view/54daedae-735c-48b6-a31a-41210a0082c6/image.png)
 
 ### Onyx
 
@@ -59,11 +59,85 @@ The nature of Onyx is that it's a distributed system. Thus, we have to assume th
 
  - Attach a uuid to the command before sending it into the queue
  - Attach a current basis-t of the datomic database value as at command generation
- - Derive uuids for the events based on the command uuid (v5 uuids) so that the event uuids are deterministic
+ - Derive event uuids from the command uuid ([namespaced v5 uuids](https://github.com/danlentz/clj-uuid/blob/86c9feb84c2175466f1c2784b3f740f523a84302/src/clj_uuid.clj#L321-L326)) so that they are deterministic
  - Ensure that the event store takes care of duplicate event writes
  - Ensure that the aggregate store treats duplicate event transactions as no-ops
 
-Onyx plays the most crucial part in making _cqrs-server_ as flexible and concise as it is.
+With Onyx we can define the workflow:
+
+![Workflow, visualized](https://www.lucidchart.com/publicSegments/view/54daef70-57e8-4898-8d7d-12390a0082c6/image.png)
+
+In code, this is just a vector of tuples:
+```clojure
+(def command-workflow
+ [[:command/in-queue :command/coerce]
+   [:command/coerce :command/process]
+   [:command/process :event/out-queue]
+   [:event/in-queue :event/prepare-store]
+   [:event/prepare-store :event/store]
+   [:event/in-queue :event/aggregator]
+   [:event/aggregator :event/store-aggregate]])
+```
+
+This gives Onyx enough information to know where to send batches, but not enough to know what the places are. For that, it needs a catalog. In the case of _cqrs-server_ it looks like: _(we've elided a lot specifics for the clarity)_
+
+```clojure
+=> (pprint catalog)
+[{:onyx/name :command/in-queue,
+  :onyx/medium :kafka,
+  :onyx/ident :kafka/read-messages,
+  :onyx/type :input,
+  :kafka/zookeeper "127.0.0.1:2181",
+  :kafka/topic "command-queue"}
+  
+ {:onyx/name :command/coerce,
+  :onyx/type :function,
+  :onyx/fn :cqrs-server.cqrs/command-coerce*}
+  
+ {:onyx/name :command/process,
+  :onyx/type :function,
+  :onyx/fn :cqrs-server.cqrs/process-command*}
+  
+ {:onyx/name :event/out-queue,
+  :onyx/medium :kafka,
+  :onyx/ident :kafka/write-messages,
+  :onyx/type :output,
+  :kafka/topic "event-queue",
+  :kafka/brokers "127.0.0.1:9092"}
+  
+ {:onyx/name :event/in-queue,
+  :onyx/ident :kafka/read-messages,
+  :onyx/medium :kafka,
+  :onyx/type :input,
+  :kafka/zookeeper "127.0.0.1:2181",
+  :kafka/topic "event-queue"}
+  
+ {:onyx/name :event/prepare-store,
+  :onyx/type :function,
+  :onyx/fn :cqrs-server.cqrs/prepare-store}
+  
+ {:onyx/name :event/store,
+  :onyx/ident :dynamodb/commit-tx,
+  :onyx/type :output,
+  :onyx/medium :dynamodb,
+  :dynamodb/table :events,
+  :dynamodb/config
+  {:access-key "aws-access-key",
+   :secret-key "aws-secret-key",
+   :endpoint "http://localhost:8000"}}
+   
+ {:onyx/name :event/aggregator,
+  :onyx/type :function,
+  :onyx/fn :cqrs-server.cqrs/aggregate-event*}
+  
+ {:onyx/name :event/store-aggregate,
+  :onyx/ident :datomic/commit-tx,
+  :onyx/type :output,
+  :onyx/medium :datomic-tx,
+  :datomic/uri "datomic:mem://cqrs"}]
+```
+
+Onyx manages the lifecycle of each of the components defined in the catalog. As messages progress through the workflow it uses the `:onyx/name` to lookup the component.
 
 ### Apache Kafka
 

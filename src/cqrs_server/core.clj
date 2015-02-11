@@ -157,7 +157,6 @@
      :onyx/medium :datomic-tx
      :onyx/consumption :concurrent
      :datomic/uri datomic-uri
-     :datomic/partition :com.mdrogalis/people
      :onyx/batch-size 1000
      :onyx/doc "Transacts segments to storage"}}))
 

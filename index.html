@@ -91,7 +91,7 @@
 <h2>
 <a id="implementation-specifics" class="anchor" href="#implementation-specifics" aria-hidden="true"><span class="octicon octicon-link"></span></a>Implementation specifics</h2>
 
-<p><img src="https://www.lucidchart.com/publicSegments/view/54da0b1b-bf78-4ec6-8256-78a10a00816a/image.png" alt="CQRS Diagram"></p>
+<p><img src="https://www.lucidchart.com/publicSegments/view/54daedae-735c-48b6-a31a-41210a0082c6/image.png" alt="CQRS Diagram"></p>
 
 <h3>
 <a id="onyx" class="anchor" href="#onyx" aria-hidden="true"><span class="octicon octicon-link"></span></a>Onyx</h3>
@@ -105,12 +105,83 @@
 <ul>
 <li>Attach a uuid to the command before sending it into the queue</li>
 <li>Attach a current basis-t of the datomic database value as at command generation</li>
-<li>Derive uuids for the events based on the command uuid (v5 uuids) so that the event uuids are deterministic</li>
+<li>Derive event uuids from the command uuid (<a href="https://github.com/danlentz/clj-uuid/blob/86c9feb84c2175466f1c2784b3f740f523a84302/src/clj_uuid.clj#L321-L326">namespaced v5 uuids</a>) so that they are deterministic</li>
 <li>Ensure that the event store takes care of duplicate event writes</li>
 <li>Ensure that the aggregate store treats duplicate event transactions as no-ops</li>
 </ul>
 
-<p>Onyx plays the most crucial part in making <em>cqrs-server</em> as flexible and concise as it is.</p>
+<p>With Onyx we can define the workflow:</p>
+
+<p><img src="https://www.lucidchart.com/publicSegments/view/54daef70-57e8-4898-8d7d-12390a0082c6/image.png" alt="Workflow, visualized"></p>
+
+<p>In code, this is just a vector of tuples:</p>
+
+<div class="highlight highlight-clojure"><pre>(<span class="pl-k">def</span> <span class="pl-e">command-workflow</span>
+ [[<span class="pl-c1">:command/in-queue</span> <span class="pl-c1">:command/coerce</span>]
+  [<span class="pl-c1">:command/coerce</span> <span class="pl-c1">:command/process</span>]
+  [<span class="pl-c1">:command/process</span> <span class="pl-c1">:event/out-queue</span>]
+  [<span class="pl-c1">:event/in-queue</span> <span class="pl-c1">:event/prepare-store</span>]
+  [<span class="pl-c1">:event/prepare-store</span> <span class="pl-c1">:event/store</span>]
+  [<span class="pl-c1">:event/in-queue</span> <span class="pl-c1">:event/aggregator</span>]
+  [<span class="pl-c1">:event/aggregator</span> <span class="pl-c1">:event/store-aggregate</span>]])</pre></div>
+
+<p>This gives Onyx enough information to know where to send batches, but not enough to know what the places are. For that, it needs a catalog. In the case of <em>cqrs-server</em> it looks like: <em>(we've elided many specifics for the clarity)</em></p>
+
+<div class="highlight highlight-clojure"><pre>=&gt; (pprint catalog)
+[{<span class="pl-c1">:onyx/name</span> :command/in-queue,
+  <span class="pl-c1">:onyx/medium</span> :kafka,
+  <span class="pl-c1">:onyx/ident</span> :kafka/read-messages,
+  <span class="pl-c1">:onyx/type</span> :input,
+  <span class="pl-c1">:kafka/zookeeper</span> <span class="pl-s1"><span class="pl-pds">"</span>127.0.0.1:2181<span class="pl-pds">"</span></span>,
+  <span class="pl-c1">:kafka/topic</span> <span class="pl-s1"><span class="pl-pds">"</span>command-queue<span class="pl-pds">"</span></span>}
+
+ {<span class="pl-c1">:onyx/name</span> :command/coerce,
+  <span class="pl-c1">:onyx/type</span> :function,
+  <span class="pl-c1">:onyx/fn</span> <span class="pl-c1">:cqrs-server.cqrs/command-coerce*</span>}
+
+ {<span class="pl-c1">:onyx/name</span> :command/process,
+  <span class="pl-c1">:onyx/type</span> :function,
+  <span class="pl-c1">:onyx/fn</span> <span class="pl-c1">:cqrs-server.cqrs/process-command*</span>}
+
+ {<span class="pl-c1">:onyx/name</span> :event/out-queue,
+  <span class="pl-c1">:onyx/medium</span> :kafka,
+  <span class="pl-c1">:onyx/ident</span> :kafka/write-messages,
+  <span class="pl-c1">:onyx/type</span> :output,
+  <span class="pl-c1">:kafka/topic</span> <span class="pl-s1"><span class="pl-pds">"</span>event-queue<span class="pl-pds">"</span></span>,
+  <span class="pl-c1">:kafka/brokers</span> <span class="pl-s1"><span class="pl-pds">"</span>127.0.0.1:9092<span class="pl-pds">"</span></span>}
+
+ {<span class="pl-c1">:onyx/name</span> :event/in-queue,
+  <span class="pl-c1">:onyx/ident</span> :kafka/read-messages,
+  <span class="pl-c1">:onyx/medium</span> :kafka,
+  <span class="pl-c1">:onyx/type</span> :input,
+  <span class="pl-c1">:kafka/zookeeper</span> <span class="pl-s1"><span class="pl-pds">"</span>127.0.0.1:2181<span class="pl-pds">"</span></span>,
+  <span class="pl-c1">:kafka/topic</span> <span class="pl-s1"><span class="pl-pds">"</span>event-queue<span class="pl-pds">"</span></span>}
+
+ {<span class="pl-c1">:onyx/name</span> :event/prepare-store,
+  <span class="pl-c1">:onyx/type</span> :function,
+  <span class="pl-c1">:onyx/fn</span> <span class="pl-c1">:cqrs-server.cqrs/prepare-store</span>}
+
+ {<span class="pl-c1">:onyx/name</span> :event/store,
+  <span class="pl-c1">:onyx/ident</span> :dynamodb/commit-tx,
+  <span class="pl-c1">:onyx/type</span> :output,
+  <span class="pl-c1">:onyx/medium</span> :dynamodb,
+  <span class="pl-c1">:dynamodb/table</span> :events,
+  <span class="pl-c1">:dynamodb/config</span>
+  {<span class="pl-c1">:access-key</span> <span class="pl-s1"><span class="pl-pds">"</span>aws-access-key<span class="pl-pds">"</span></span>,
+   <span class="pl-c1">:secret-key</span> <span class="pl-s1"><span class="pl-pds">"</span>aws-secret-key<span class="pl-pds">"</span></span>,
+   <span class="pl-c1">:endpoint</span> <span class="pl-s1"><span class="pl-pds">"</span>http://localhost:8000<span class="pl-pds">"</span></span>}}
+
+ {<span class="pl-c1">:onyx/name</span> :event/aggregator,
+  <span class="pl-c1">:onyx/type</span> :function,
+  <span class="pl-c1">:onyx/fn</span> <span class="pl-c1">:cqrs-server.cqrs/aggregate-event*</span>}
+
+ {<span class="pl-c1">:onyx/name</span> :event/store-aggregate,
+  <span class="pl-c1">:onyx/ident</span> :datomic/commit-tx,
+  <span class="pl-c1">:onyx/type</span> :output,
+  <span class="pl-c1">:onyx/medium</span> :datomic-tx,
+  <span class="pl-c1">:datomic/uri</span> <span class="pl-s1"><span class="pl-pds">"</span>datomic:mem://cqrs<span class="pl-pds">"</span></span>}]</pre></div>
+
+<p>Onyx manages the lifecycle of each of the components defined in the catalog. As messages progress through the workflow it uses the <code>:onyx/name</code> to lookup the component.</p>
 
 <h3>
 <a id="apache-kafka" class="anchor" href="#apache-kafka" aria-hidden="true"><span class="octicon octicon-link"></span></a>Apache Kafka</h3>

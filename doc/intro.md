@@ -79,7 +79,7 @@ In code, this is just a vector of tuples:
    [:event/aggregator :event/store-aggregate]])
 ```
 
-This gives Onyx enough information to know where to send batches, but not enough to know what the places are. For that, it needs a catalog. In the case of _cqrs-server_ it looks like: _(we've elided a lot specifics for the clarity)_
+This gives Onyx enough information to know where to send batches, but not enough to know what the places are. For that, it needs a catalog. In the case of _cqrs-server_ it looks like: _(we've elided many specifics for the clarity)_
 
 ```clojure
 => (pprint catalog)

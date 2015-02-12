@@ -71,12 +71,12 @@ In code, this is just a vector of tuples:
 ```clojure
 (def command-workflow
  [[:command/in-queue :command/coerce]
-   [:command/coerce :command/process]
-   [:command/process :event/out-queue]
-   [:event/in-queue :event/prepare-store]
-   [:event/prepare-store :event/store]
-   [:event/in-queue :event/aggregator]
-   [:event/aggregator :event/store-aggregate]])
+  [:command/coerce :command/process]
+  [:command/process :event/out-queue]
+  [:event/in-queue :event/prepare-store]
+  [:event/prepare-store :event/store]
+  [:event/in-queue :event/aggregator]
+  [:event/aggregator :event/store-aggregate]])
 ```
 
 This gives Onyx enough information to know where to send batches, but not enough to know what the places are. For that, it needs a catalog. In the case of _cqrs-server_ it looks like: _(we've elided many specifics for the clarity)_
@@ -242,4 +242,4 @@ Some related reading that influenced this design, in no particular order:
  - [Martin Fowler: Event Sourcing](http://martinfowler.com/eaaDev/EventSourcing.html)
  - [DDD, Event Sourcing, and CQRS Tutorial: design](http://cqrs.nu/tutorial/cs/01-design)
  - [CQRS Journey](http://msdn.microsoft.com/en-us/library/jj554200.aspx)
-  
+ - [Martin Kleppmann: Stream Processing, Event Sourcing, Reactive, CEP, And making sense of it all](http://blog.confluent.io/2015/01/29/making-sense-of-stream-processing/)  

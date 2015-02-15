@@ -15,7 +15,6 @@
    [com.mdrogalis/onyx "0.5.0"]
    [com.mdrogalis/onyx-core-async "0.5.0"]
    [commons-codec "1.7"]
-   [com.datomic/datomic-pro "0.9.5130" :exclusions [org.slf4j/slf4j-nop org.slf4j/log4j-over-slf4j joda-time]]
    [datomic-schema "1.2.1"]
    [org.clojure/core.async "0.1.346.0-17112a-alpha"]
    [criterium "0.4.3"]
@@ -27,6 +26,7 @@
    [org.hornetq/hornetq-core-client "2.4.0.Final"]
    [org.hornetq/hornetq-server "2.4.0.Final"]]
 
-  :repl-options
-  {:init-ns cqrs-server.core}
+  :profiles {:dev {:dependencies [[com.datomic/datomic-free "0.9.5130" :exclusions [org.slf4j/slf4j-nop org.slf4j/log4j-over-slf4j joda-time]]]}
+             :prod {:dependencies [[com.datomic/datomic-pro "0.9.5130" :exclusions [org.slf4j/slf4j-nop org.slf4j/log4j-over-slf4j joda-time]]]}}
+  :repl-options{:init-ns cqrs-server.core}
   :main cqrs-server.core)

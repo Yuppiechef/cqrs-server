@@ -1,6 +1,6 @@
 # Introduction to _cqrs-server_
 
-An opinionated CQRS/ES implementation using [Onyx](https://github.com/MichaelDrogalis/onyx), [Datomic](http://www.datomic.com/), [DynamoDB](http://aws.amazon.com/dynamodb/), [Kafka](http://kafka.apache.org/) and [Zookeeper](http://zookeeper.apache.org/).
+An opinionated Clojure CQRS/ES implementation using [Onyx](https://github.com/MichaelDrogalis/onyx), [Datomic](http://www.datomic.com/), [DynamoDB](http://aws.amazon.com/dynamodb/), [Kafka](http://kafka.apache.org/) and [Zookeeper](http://zookeeper.apache.org/).
 
 ## The problem
 
@@ -179,6 +179,17 @@ Next, download Kafka from <http://kafka.apache.org/downloads.html>, unzip and ru
 bin/zookeeper-server-start.sh config/zookeeper.properties
 bin/kafka-server-start.sh config/server.properties
 ```
+
+Currently, this needs the latest SNAPSHOT version of Prismatic Schema, so clone that repo and install the jar:
+
+```
+git clone https://github.com/Prismatic/schema.git
+cd schema
+lein cljx once
+lein install
+```
+
+
 Finally, clone _cqrs-server_ and run:
 ```bash
 git clone https://github.com/Yuppiechef/cqrs-server.git

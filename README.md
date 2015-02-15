@@ -25,9 +25,20 @@ bin/zookeeper-server-start.sh config/zookeeper.properties
 bin/kafka-server-start.sh config/server.properties
 ```
 
+Currently, this needs the latest SNAPSHOT version of Prismatic Schema, so clone that repo and install the jar:
+
+```
+git clone https://github.com/Prismatic/schema.git
+cd schema
+lein cljx once
+lein install
+```
+
+
 Then clone this repo and fire it up!
 
 ```
+cd cqrs-server
 lein repl
 
 => (start)

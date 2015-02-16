@@ -15,7 +15,7 @@
    [com.mdrogalis/onyx "0.5.2"]
    [com.mdrogalis/onyx-core-async "0.5.0"]
    [commons-codec "1.7"]
-   [datomic-schema "1.2.1"]
+   [datomic-schema "1.2.2"]
    [org.clojure/core.async "0.1.346.0-17112a-alpha"]
    [criterium "0.4.3"]
    [yuppiechef/onyx-dynamodb "0.5.0"]

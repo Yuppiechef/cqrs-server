@@ -34,6 +34,7 @@ lein cljx once
 lein install
 ```
 
+### cqrs-server
 
 Then clone this repo and fire it up!
 
@@ -81,6 +82,12 @@ The actual data is fressian encoded so that there's no pain with the transformat
 
 NOTE: If you do actually use this for user aggregates and authentication, remember to at least bcrypt your passwords.
 Be very aware that sensitive data is written to multiple places in this system: the kafka queues, the dynamo event source and the datomic aggregate. This is a particularly important consideration for things like credit card details and passwords.
+
+## Datomic-pro
+
+The default profile uses datomic-free - if you want to use datomic-pro, start the repl with `lein with-profile prod`
+
+When you use cqrs-server as a library to your application project, you'll probably want to add it as a dependency with an exclusion: `[cqrs-server "0.1.0-SNAPSHOT" :exclusions [com.datomic/datomic-free]]`
 
 ## License
 

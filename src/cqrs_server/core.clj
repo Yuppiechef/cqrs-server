@@ -20,7 +20,8 @@
    [onyx.api]
    
    [cqrs-server.cqrs :as cqrs]
-   [cqrs-server.module :as module]))
+   [cqrs-server.module :as module])
+  (:gen-class))
 
 ;; Start local dynamodb - download from:
 ;; http://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Tools.DynamoDBLocal.html
@@ -231,3 +232,7 @@
   (k/with-resource [c (zk/consumer config)]
     zk/shutdown
     (println (take 10 (map fressian/read (map :value (zk/messages c queue)))))))
+
+
+(defn main- [& args]
+  (start))

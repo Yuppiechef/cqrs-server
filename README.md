@@ -89,6 +89,10 @@ The default profile uses datomic-free - if you want to use datomic-pro, start th
 
 When you use cqrs-server as a library to your application project, you'll probably want to add it as a dependency with an exclusion: `[cqrs-server "0.1.0-SNAPSHOT" :exclusions [com.datomic/datomic-free]]`
 
+## Tests
+
+Because this project depends on correct integration with kafka, dynamodb and zookeeper, the tests require that you have these running locally before you run `lein test`. See above in order to get them installed and started.
+
 ## License
 
 Copyright © 2015 Yuppiechef Online (Pty) Ltd.

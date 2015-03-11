@@ -1,11 +1,13 @@
 (ns cqrs-server.cqrs
   (:require
+   [onyx.plugin.datomic]
    [cqrs-server.util :as util :refer [defdbfn]]
    [clojure.core.async :as a]
    [onyx.peer.task-lifecycle-extensions :as l-ext]
    [datomic.api :as d]
    [datomic-schema.schema :refer [schema fields]]
    [taoensso.timbre :as log]
+   [taoensso.nippy :as nippy]
    [schema.core :as s]
    [schema.coerce :as coerce]
    [clj-uuid :as u]
@@ -14,11 +16,11 @@
 ;; Not the prettiest, but will clean this up down the line.
 (def datomic-uri (atom nil))
 
-(defn command-db [{:keys [basis-t]}]
+(defn command-db [{:keys [t]}]
   (let [db (d/db (d/connect @datomic-uri))]
-    (if basis-t (d/as-of db basis-t) basis-t)))
+    (if t (d/as-of db t) db)))
 
-(defmulti aggregate-event (fn [{:keys [type] :as event}] type))
+(defmulti aggregate-event (fn [{:keys [tp] :as event}] tp))
 
 (defmethod aggregate-event :default [_] [])
 
@@ -27,8 +29,8 @@
   (let [r (aggregate-event e)
         _ (log/info "transacting: " r)
         t @(d/transact (d/connect @datomic-uri) [[:idempotent-tx (java.util.UUID/fromString (str (:id e))) r]])]
-    [{:eventid (:id e)
-      :basis-t (d/basis-t (:db-after t))}]))
+    [{:eid (:id e)
+      :t (d/basis-t (:db-after t))}]))
 
 (defdbfn idempotent-tx [db eid tx]
   (if-not (datomic.api/entity db [:event/uuid eid])
@@ -47,16 +49,16 @@
     (fields
      [uuid :uuid :unique-identity]))])
 
-(defmulti command-coerce (fn [{:keys [type] :as command}] type))
+(defmulti command-coerce (fn [{:keys [tp] :as command}] tp))
 
 (defmethod command-coerce :default [_] [])
 
 (defn command-coerce* [c]
   (log/info "Coercing: " c)
-  (let [coerce (command-coerce c)]
-    (if (:error coerce)
-      (throw (RuntimeException. (str (:error coerce))))
-      [c])))
+  (let [coerced (command-coerce c)]
+    (if (:error coerced)
+      (throw (RuntimeException. (str (:error coerced))))
+      [(assoc c :data coerced)])))
 
 
 (defn install-command [[type schema]]
@@ -69,38 +71,41 @@
 
 
 
-(defmulti process-command (fn [{:keys [type] :as command}] type))
+(defmulti process-command (fn [{:keys [tp] :as command}] tp))
 
 (defmethod process-command :default [_] [])
 
 (defn process-command* [command]
   (log/info "Processing Command: " command)
-  (process-command command))
+  (let [result
+        (process-command command)]
+    (log/info "Processed Command: " result)
+    result))
 
 (defn prepare-store [e]
   (log/info "Preparing for storage: " e)
-  (assoc e :id (str (:id e)) :data (.array (fressian/write (:data e)))))
+  (assoc e :id (str (:id e)) :cid (str (:cid e)) :data (nippy/freeze (:data e))))
 
 (defn error [msg]
   (throw (RuntimeException. (str msg))))
 
-(defn command [basis-t type msg]
-  {:basis-t basis-t
-   :type type
+(defn command [basis-t type data]
+  {:t basis-t
+   :tp type
    :id (str (java.util.UUID/randomUUID))
-   :data msg})
+   :data data})
 
-(defn event [command segment n [type msg]]
+(defn event [command segment n [type data]]
   {:id (u/v5 u/+namespace-oid+ (str (:id command) ":" n "/" segment))
-   :date (.getTime (java.util.Date.))
-   :type type
-   :basis-t (:basis-t command) 
-   :data msg})
+   :tp type
+   :cid (:id command)
+   :ctp (:tp command)
+   :dt (.getTime (java.util.Date.))
+   :t (:t command) 
+   :data data})
 
 (defn events [command segment msgs]
   (map (partial event command segment) (range) msgs))
-
-
 
 (def command-workflow
   [[:command/in-queue :command/coerce]

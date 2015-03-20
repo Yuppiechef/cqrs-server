@@ -1,68 +1,51 @@
 (ns cqrs-server.cqrs
   (:require
-   [onyx.plugin.datomic]
-   [cqrs-server.util :as util :refer [defdbfn]]
+   [cqrs-server.util :as util]
    [clojure.core.async :as a]
-   [onyx.peer.task-lifecycle-extensions :as l-ext]
-   [datomic.api :as d]
-   [datomic-schema.schema :refer [schema fields]]
    [taoensso.timbre :as log]
    [taoensso.nippy :as nippy]
    [schema.core :as s]
    [schema.coerce :as coerce]
-   [clj-uuid :as u]
-   [clojure.data.fressian :as fressian]))
+   [clj-uuid :as u]))
 
-;; Not the prettiest, but will clean this up down the line.
-(def datomic-uri (atom nil))
+;; TODO - tag code version onto the events.
 
-(defn command-db [{:keys [t]}]
-  (let [db (d/db (d/connect @datomic-uri))]
-    (if t (d/as-of db t) db)))
+(defn error
+  "Produce an error segment, level should be one of :dev, :user, :system.
+
+  :dev - code bug, send to DLQ
+  :user - user error, provide feedback
+  :system - system error (network problems, file writing issues, etc), apply retry strategy and DLQ if not"
+  [level msg & {:keys [tag data] :as opts}]
+  {::error/msg msg
+   ::error/opts opts
+   ::error/level level})
 
 (defmulti aggregate-event (fn [{:keys [tp] :as event}] tp))
 
 (defmethod aggregate-event :default [_] [])
 
-(defn aggregate-event* [e]
-  (log/info "Aggregating" e)
-  (let [r (aggregate-event e)
-        _ (log/info "transacting: " r)
-        t @(d/transact (d/connect @datomic-uri) [[:idempotent-tx (java.util.UUID/fromString (str (:id e))) r]])]
-    [{:eid (:id e)
-      :t (d/basis-t (:db-after t))}]))
-
-(defdbfn idempotent-tx [db eid tx]
-  (if-not (datomic.api/entity db [:event/uuid eid])
-    (concat [[:db/add (datomic.api/tempid :db.part/tx) :event/uuid eid]] tx) []))
-
-(defdbfn add [db entid attr value]
-  (let [ent (datomic.api/entity db entid)]
-    (if ent
-      [{:db/id entid attr (+ (or (get ent attr) 0) value)}] [])))
-
-(def db-schema
-  [(:tx (meta idempotent-tx))
-   (:tx (meta add))
-   (schema
-    event
-    (fields
-     [uuid :uuid :unique-identity]))])
+(defn aggregate-event* [writer-fn & args]
+  (let [e (last args)
+        _ (log/info "Aggregating" e)
+        r (aggregate-event e)]
+    (apply writer-fn (concat (butlast args) [e r]))))
 
 (defmulti command-coerce (fn [{:keys [tp] :as command}] tp))
 
-(defmethod command-coerce :default [_] [])
+(defmethod command-coerce :default [{:keys [tp]}]
+  [(error :dev "command-coerce for " tp " has not been defined.")])
 
 (defn command-coerce* [c]
   (log/info "Coercing: " c)
   (let [coerced (command-coerce c)]
     (if (:error coerced)
-      (throw (RuntimeException. (str (:error coerced))))
+      [(error :user "Command validation error" :tag :validation :data (:error coerced))]
       [(assoc c :data coerced)])))
 
 
 (defn install-command [[type schema]]
-  `(let [coercer# (coerce/coercer (assoc ~schema s/Any s/Any) coerce/string-coercion-matcher)]
+  `(let [coercer# (coerce/coercer (assoc ~schema s/Any s/Any) util/coercion-matcher)]
      (defmethod command-coerce ~type [c#]
        (coercer# (:data c#)))))
 
@@ -73,21 +56,28 @@
 
 (defmulti process-command (fn [{:keys [tp] :as command}] tp))
 
-(defmethod process-command :default [_] [])
+(defmethod process-command :default [{:keys [tp]}]
+  [(error :dev "process-command for " tp " has not been defined.")])
 
-(defn process-command* [command]
-  (log/info "Processing Command: " command)
-  (let [result
-        (process-command command)]
+(defn process-command* [& args]
+  (let [command (last args)
+        _ (log/info "Processing Command: " command)
+        _ (log/info "args: " args)
+        kpairs (butlast args)
+        result
+        (process-command (if (-> kpairs count zero?) command (apply assoc command (butlast args))))]
     (log/info "Processed Command: " result)
     result))
 
-(defn prepare-store [e]
-  (log/info "Preparing for storage: " e)
-  (assoc e :id (str (:id e)) :cid (str (:cid e)) :data (nippy/freeze (:data e))))
+(defn event-store [& [writer-fn & args :as a]]
+  (log/info "EVENT STORE: " a)
+  (let [e (last args)
+        _ (log/info "Event: " e)
+        s (assoc e :id (str (:id e)) :cid (str (:cid e)) :data (nippy/freeze (:data e)))]
+    (log/info "Prepared for storage: " s)
+    (apply writer-fn (concat (butlast args) [e s]))))
 
-(defn error [msg]
-  (throw (RuntimeException. (str msg))))
+
 
 (defn command [basis-t type data]
   {:t basis-t
@@ -111,16 +101,28 @@
   [[:command/in-queue :command/coerce]
    [:command/coerce :command/process]
    [:command/process :event/out-queue]
-   [:event/in-queue :event/prepare-store]
-   [:event/prepare-store :event/store]
-   [:event/in-queue :event/aggregator]
-   [:event/aggregator :event/aggregate-out]])
+   [:event/in-queue :event/store]
+   [:event/store :event/aggregator]
+   [:event/aggregator :command/feedback]])
 
-(defn catalog [{:keys [command-queue in-event-queue out-event-queue event-store aggregate-store aggregate-out]}]
+
+(comment
+  ;; Failure handling
+  [[:command/coerce :error]
+   [:command/process :error]
+   [:event/store :error]
+   [:event/aggregator :error]
+   [:event/aggregate-store :error]])
+
+
+(defn catalog
+  [c]
   [(assoc
-    command-queue
+    (-> c :command/in-queue :entry)
     :onyx/name :command/in-queue
-    :onyx/type :input)
+    :onyx/type :input
+    :onyx/consumption :concurrent
+    :onyx/batch-size 1)
 
    {:onyx/name :command/coerce
     :onyx/type :function
@@ -128,40 +130,66 @@
     :onyx/consumption :concurrent
     :onyx/batch-size 1}
 
-   {:onyx/name :command/process
+   (assoc
+    (-> c :command/process :entry)
+    :onyx/name :command/process
     :onyx/type :function
     :onyx/fn :cqrs-server.cqrs/process-command*
     :onyx/consumption :concurrent
-    :onyx/batch-size 1}
+    :onyx/batch-size 1)
 
    (assoc
-    out-event-queue
+    (-> c :event/out-queue :entry)
     :onyx/name :event/out-queue
-    :onyx/type :output)
+    :onyx/type :output
+    :onyx/consumption :concurrent
+    :onyx/batch-size 1)
 
    (assoc
-    in-event-queue
+    (-> c :event/in-queue :entry)
     :onyx/name :event/in-queue
-    :onyx/type :input)
-   
-   {:onyx/name :event/prepare-store
-    :onyx/type :function
-    :onyx/fn :cqrs-server.cqrs/prepare-store
+    :onyx/type :input
     :onyx/consumption :concurrent
-    :onyx/batch-size 1}
+    :onyx/batch-size 1)
    
    (assoc
-    event-store
+    (-> c :event/store :entry)
     :onyx/name :event/store
-    :onyx/type :output)
-   
-   {:onyx/name :event/aggregator
+    :onyx/type :function
+    :onyx/fn :cqrs-server.cqrs/event-store
+    :onyx/consumption :concurrent
+    :onyx/batch-size 1)
+
+   (assoc
+    (-> c :event/aggregator :entry)
+    :onyx/name :event/aggregator
     :onyx/type :function
     :onyx/fn :cqrs-server.cqrs/aggregate-event*
     :onyx/consumption :concurrent
-    :onyx/batch-size 1}
+    :onyx/batch-size 1)
 
    (assoc
-    aggregate-out
-    :onyx/name :event/aggregate-out
-    :onyx/type :output)])
+    (-> c :command/feedback :entry)
+    :onyx/name :command/feedback
+    :onyx/type :output
+    :onyx/consumption :concurrent
+    :onyx/batch-size 1)])
+
+(defn error-flows [workflow catalog]
+  (map
+   (fn [c]
+     {:flow
+      {:flow/from (:onyx/name c)
+       :flow/to :cqrs/error
+       :flow/thrown-exception? true
+       :flow/short-circuit? true
+       :flow/post-transform :cqrs-server.cqrs/error}})
+   catalog))
+
+(defn setup [onyxid catalog-map]
+  {:catalog (catalog catalog-map)
+   :workflow command-workflow
+   :onyxid onyxid
+   :catmap catalog-map})
+
+

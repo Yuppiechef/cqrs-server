@@ -1,18 +1,40 @@
 (ns cqrs-server.async
   (:require
-   [clojure.core.async :as a]
-   [onyx.peer.task-lifecycle-extensions :as l-ext]
-   [onyx.plugin.core-async]))
+   [taoensso.timbre :as log]
+   [clojure.core.async :as a]))
 
-(defn chan-stream [type]
-  {:onyx/ident (if (= type :output) :core.async/write-to-chan :core.async/read-from-chan)
-   :onyx/type type
-   :onyx/medium :core.async
-   :onyx/consumption :sequential
-   :onyx/batch-size 1
-   :onyx/batch-timeout 500
-   :onyx/max-peers 1})
+(defn writer [chan e s]
+  (a/>!! chan s)
+  [e])
 
-(defmacro chan-register [ident type chan-atom]
-  `(defmethod l-ext/inject-lifecycle-resources ~ident [~(symbol "_") ~(symbol "_")]
-     {~(if (= type :output) :core-async/out-chan :core-async/in-chan) (deref ~chan-atom)}))
+(defn lifecycle [chan-atom]
+  (fn [task-map]
+    (log/info "Setup lifecycle:" task-map)
+    (if (= (:onyx/type task-map) :function)
+      (do
+        (log/info "Function: " (:onyx/name task-map))
+        {:core.async/chan @chan-atom
+         :onyx.core/params [writer @chan-atom]})
+      (do
+        (log/info "In/out: " (:onyx/name task-map))
+        {:core.async/chan @chan-atom}))))
+
+
+(defn stream [type chan-atom]
+  (let [base
+        {:entry
+         {:onyx/type type
+          :onyx/batch-size 1
+          :onyx/batch-timeout 500
+          :onyx/max-peers 1}
+         :lifecycle (lifecycle chan-atom)}]
+    (if (#{:output :input} type)
+      (->
+       base
+       (assoc-in
+        [:entry :onyx/ident] (case type
+                               :output :core.async/write-to-chan
+                               :input :core.async/read-from-chan))
+       (assoc-in
+        [:entry :onyx/medium] :core.async))
+      base)))

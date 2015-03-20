@@ -1,18 +1,15 @@
-(ns cqrs-server.async-test
+(ns cqrs-server.simple-async-test
   (:require
    [clojure.core.async :as a]
    [schema.core :as s]
+   [cqrs-server.simple :as simple]
    [cqrs-server.async :as async]
-   [cqrs-server.onyx :as onyx]
    [cqrs-server.cqrs :as cqrs]
 
-   [onyx.plugin.core-async]
    [clojure.test :refer :all]
    [taoensso.timbre :as log]))
 
-;; A fully self-contained cqrs test, with in-memory zookeeper using only async channels.
-;; This differs from the other tests in that it uses internal zookeeper - the rest use seperate
-;; process (port 2181) zookeeper instance.
+;; This test uses the simple mode that emulates onyx, but is completely non-distributed.
 
 ;; First, lets define the most basic module
 
@@ -39,19 +36,6 @@
 
 ;; And that's it for the module, let's get cqrs setup.
 
-(def env-config
-  {:zookeeper/address "127.0.0.1:2185"
-   :zookeeper/server? true
-   :zookeeper.server/port 2185
-   :onyx.peer/job-scheduler :onyx.job-scheduler/round-robin})
-
-(def peer-config
-  {:zookeeper/address "127.0.0.1:2185"   
-   :onyx.peer/inbox-capacity 100
-   :onyx.peer/outbox-capacity 100
-   :onyx.messaging/impl :http-kit-websockets
-   :onyx.peer/job-scheduler :onyx.job-scheduler/round-robin})
-
 (def config
   {:command-stream (atom nil)
    :event-stream (atom nil)
@@ -76,11 +60,9 @@
   (setup-aggregate-chan @(:aggregator config))
   
   (let [setup (cqrs/setup (java.util.UUID/randomUUID) catalog-map)]
-    {:onyx (onyx/start setup env-config peer-config)}))
+    {:simple (simple/start setup)}))
 
 (defn stop-env [env]
-  ((-> env :onyx :shutdown))
-  
   (doseq [c (:channels config)]
     (swap! (get config c) (fn [chan] (a/close! chan) nil)))
   true)
@@ -90,7 +72,6 @@
 
 (deftest run-test []
   (let [env (setup-env)
-        _ (-> env :onyx :started-latch deref)
         event (delay (first (a/alts!! [@(:event-store-stream config) (a/timeout 2000)])))
         feedback (delay (first (a/alts!! [@(:feedback-stream config) (a/timeout 2000)])))]
     (try

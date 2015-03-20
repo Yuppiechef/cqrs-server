@@ -1,12 +1,6 @@
 (ns cqrs-server.dynamo-test
   (:require
-   [datomic.api :as d]
-   [datomic-schema.schema :as ds :refer [schema fields part]]
    [schema.core :as s]
-   [cqrs-server.cqrs :as cqrs]
-   
-   [onyx.api]
-   [onyx.plugin.core-async]
    
    [clojure.core.async :as a]
    [clojure.test :refer :all]
@@ -14,8 +8,9 @@
    [taoensso.faraday :as far]
    [taoensso.nippy :as nippy]
    
+   [cqrs-server.cqrs :as cqrs]
+   [cqrs-server.simple :as simple]
    [cqrs-server.async :as async]
-   [cqrs-server.onyx :as onyx]
    [cqrs-server.dynamo :as dynamo]))
 
 
@@ -49,18 +44,6 @@
    :endpoint   "http://localhost:8000"
    :tablename :eventstore})
 
-
-(def env-config
-  {:zookeeper/address "127.0.0.1:2181"
-   :onyx.peer/job-scheduler :onyx.job-scheduler/round-robin})
-
-(def peer-config
-  {:zookeeper/address "127.0.0.1:2181"
-   :onyx.peer/inbox-capacity 100
-   :onyx.peer/outbox-capacity 100
-   :onyx.messaging/impl :http-kit-websockets
-   :onyx.peer/job-scheduler :onyx.job-scheduler/round-robin})
-
 (def config
   {:command-stream (atom nil)
    :event-stream (atom nil)
@@ -69,22 +52,13 @@
    :channels [:command-stream :event-stream :aggregator :feedback-stream]})
 
 
-
 (def catalog-map
-  {:command-queue (async/stream :input)
-   :out-event-queue (async/stream :output)
-   :in-event-queue (async/stream :input)
-   :event-store (dynamo/catalog local-cred)
-   :aggregator (async/stream :fn)
-   :feedback (async/stream :output)})
-
-
-(onyx/lifecycle-resource :command/in-queue (async/lifecycle (:command-stream config)))
-(onyx/lifecycle-resource :event/out-queue (async/lifecycle (:event-stream config)))
-(onyx/lifecycle-resource :event/in-queue (async/lifecycle (:event-stream config)))
-(onyx/lifecycle-resource :event/aggregator (async/lifecycle (:aggregator config)))
-(onyx/lifecycle-resource :command/feedback (async/lifecycle (:feedback-stream config)))
-(onyx/lifecycle-resource :event/store (dynamo/lifecycle))
+  {:command/in-queue (async/stream :input (:command-stream config))
+   :event/out-queue (async/stream :output (:event-stream config))
+   :event/in-queue (async/stream :input (:event-stream config))
+   :event/store (dynamo/catalog local-cred)
+   :event/aggregator (async/stream :fn (:aggregator config))
+   :command/feedback (async/stream :output (:feedback-stream config))})
 
 (defn setup-env []
   (dynamo/table-setup local-cred)
@@ -96,11 +70,9 @@
   (setup-aggregate-chan @(:aggregator config))
   
   (let [setup (cqrs/setup (java.util.UUID/randomUUID) catalog-map)]
-    {:onyx (onyx/start setup env-config peer-config)}))
+    {:simple (simple/start setup)}))
 
 (defn stop-env [env]
-  ((-> env :onyx :shutdown))
-  
   (doseq [c (:channels config)]
     (swap! (get config c) (fn [chan] (a/close! chan) nil)))
   
@@ -110,15 +82,11 @@
   
   true)
 
-(defn command [type data]
-  (cqrs/command 1 type data))
-
 (defn send-command [type data]
-  (a/>!! @(:command-stream config) (command type data)))
+  (a/>!! @(:command-stream config) (cqrs/command 1 type data)))
 
 (deftest run-test []
   (let [env (setup-env)
-        _ (-> env :onyx :started-latch deref)
         feedback (delay (first (a/alts!! [@(:feedback-stream config) (a/timeout 2000)])))]
     (try
       (send-command :user/register {:name "Bob" :age 33})

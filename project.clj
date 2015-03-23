@@ -5,6 +5,7 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies
   [[org.clojure/clojure "1.7.0-alpha5"]
+   [org.clojure/java.data "0.1.1"]
    [prismatic/schema "0.4.0"]
    [danlentz/clj-uuid "0.1.5"]
    [com.taoensso/nippy "2.8.0"]
@@ -32,6 +33,7 @@
      [com.taoensso/faraday "1.5.0" :exclusions [org.clojure/clojure joda-time]]
      [com.mdrogalis/onyx-datomic "0.5.2"]
      [criterium "0.4.3"]
-     [com.mdrogalis/onyx-kafka "0.5.3" :exclusions [org.slf4j/slf4j-simple]]]}}
+     [com.mdrogalis/onyx-kafka "0.5.3" :exclusions [org.slf4j/slf4j-simple]]
+     [com.cemerick/pomegranate "0.3.0"]]}}
   #_:repl-options #_{ :init-ns cqrs-server.core :timeout 120000}
   #_:main #_cqrs-server.core)

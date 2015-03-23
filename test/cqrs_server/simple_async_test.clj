@@ -42,7 +42,8 @@
    :event-store-stream (atom nil)
    :aggregator (atom nil)
    :feedback-stream (atom nil)
-   :channels [:command-stream :event-stream :event-store-stream :aggregator :feedback-stream]})
+   :error-stream (atom nil)
+   :channels [:command-stream :event-stream :event-store-stream :aggregator :feedback-stream :error-stream]})
 
 (def catalog-map
   {:command/in-queue (async/stream :input (:command-stream config))
@@ -50,7 +51,8 @@
    :event/in-queue (async/stream :input (:event-stream config))
    :event/store (async/stream :fn (:event-store-stream config))
    :event/aggregator (async/stream :fn (:aggregator config))
-   :command/feedback (async/stream :output (:feedback-stream config))})
+   :command/feedback (async/stream :output (:feedback-stream config))
+   :cqrs/error (async/stream :fn (:error-stream config))})
 
 (defn setup-env []
   (reset! users {})
@@ -80,5 +82,20 @@
       (assert @feedback)
       (assert (= {"Bob" {:name "Bob" :age 33}} @users))
       
+      (finally
+        (stop-env env)))))
+
+(deftest run-error-test []
+  (let [env (setup-env)
+        event (delay (first (a/alts!! [@(:event-store-stream config) (a/timeout 500)])))
+        feedback (delay (first (a/alts!! [@(:feedback-stream config) (a/timeout 500)])))
+        error (delay (first (a/alts!! [@(:error-stream config) (a/timeout 2000)])))]
+    (try
+      (send-command :user/invalid-command {:name "Bob" :age 33})
+      (assert (= (-> @error :error/opts :tag) :command-coerce))
+      (assert (= (-> @error :error/opts :data :cmd :tp) :user/invalid-command))
+      (assert (= (-> @error :error/level) :dev))
+      (assert (nil? @event))
+      (assert (nil? @feedback))
       (finally
         (stop-env env)))))

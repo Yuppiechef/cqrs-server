@@ -6,42 +6,55 @@
    [taoensso.nippy :as nippy]
    [schema.core :as s]
    [schema.coerce :as coerce]
-   [clj-uuid :as u]))
+   [clj-uuid :as u]
+   [clojure.java.data :as data]))
 
 ;; TODO - tag code version onto the events.
 
 (defn error
   "Produce an error segment, level should be one of :dev, :user, :system.
 
-  :dev - code bug, send to DLQ
+  :dev - code bug, send to DLQ - this is the default error.
   :user - user error, provide feedback
   :system - system error (network problems, file writing issues, etc), apply retry strategy and DLQ if not"
   [level msg & {:keys [tag data] :as opts}]
-  {::error/msg msg
-   ::error/opts opts
-   ::error/level level})
+  {:error/msg msg
+   :error/opts opts
+   :error/level level})
 
 (defmulti aggregate-event (fn [{:keys [tp] :as event}] tp))
 
 (defmethod aggregate-event :default [_] [])
 
 (defn aggregate-event* [writer-fn & args]
-  (let [e (last args)
-        _ (log/info "Aggregating" e)
-        r (aggregate-event e)]
-    (apply writer-fn (concat (butlast args) [e r]))))
+  (try
+    (let [e (last args)
+          _ (log/info "Aggregating" e)
+          r (aggregate-event e)]
+      (apply writer-fn (concat (butlast args) [e r])))
+    (catch Exception ex
+        [(error :dev (.getMessage ex) :tag :aggregate-event :data
+                {:ex (data/from-java ex) :ev (last args)})])))
 
 (defmulti command-coerce (fn [{:keys [tp] :as command}] tp))
 
-(defmethod command-coerce :default [{:keys [tp]}]
-  [(error :dev "command-coerce for " tp " has not been defined.")])
+(defmethod command-coerce :default [{:keys [tp] :as command}]
+  (error :dev (str "command-coerce for " tp " has not been defined.") :tag :command-coerce :data {:cmd command}))
 
 (defn command-coerce* [c]
   (log/info "Coercing: " c)
-  (let [coerced (command-coerce c)]
-    (if (:error coerced)
-      [(error :user "Command validation error" :tag :validation :data (:error coerced))]
-      [(assoc c :data coerced)])))
+  (try
+    (let [coerced (command-coerce c)]
+      (cond
+        (:error/msg coerced)
+        [coerced]
+        (:error coerced)
+        [(error :user "Command validation error" :tag :validation :data {:validation (:error coerced) :cmd c})]
+        :else
+        [(assoc c :data coerced)]))
+    (catch Exception ex
+        [(error :dev (.getMessage ex) :tag :command-coerce :data
+                {:ex (data/from-java ex) :cmd c})])))
 
 
 (defn install-command [[type schema]]
@@ -56,27 +69,34 @@
 
 (defmulti process-command (fn [{:keys [tp] :as command}] tp))
 
-(defmethod process-command :default [{:keys [tp]}]
-  [(error :dev "process-command for " tp " has not been defined.")])
+(defmethod process-command :default [{:keys [tp] :as c}]
+  [(error :dev (str "process-command for " tp " has not been defined.") :tag :process-command :data {:cmd c})])
 
 (defn process-command* [& args]
-  (let [command (last args)
-        _ (log/info "Processing Command: " command)
-        _ (log/info "args: " args)
-        kpairs (butlast args)
-        result
-        (process-command (if (-> kpairs count zero?) command (apply assoc command (butlast args))))]
-    (log/info "Processed Command: " result)
-    result))
+  (try
+    (let [command (last args)
+          _ (log/info "Processing Command: " command)
+          _ (log/info "args: " args)
+          kpairs (butlast args)
+          result
+          (process-command (if (-> kpairs count zero?) command (apply assoc command (butlast args))))]
+      (log/info "Processed Command: " result)
+      result)
+    (catch Exception ex
+        [(error :dev (.getMessage ex) :tag :process-command :data
+                {:ex (data/from-java ex) :cmd command})])))
 
 (defn event-store [& [writer-fn & args :as a]]
-  (log/info "EVENT STORE: " a)
-  (let [e (last args)
-        _ (log/info "Event: " e)
-        s (assoc e :id (str (:id e)) :cid (str (:cid e)) :data (nippy/freeze (:data e)))]
-    (log/info "Prepared for storage: " s)
-    (apply writer-fn (concat (butlast args) [e s]))))
-
+  (try
+    (log/info "EVENT STORE: " a)
+    (let [e (last args)
+          _ (log/info "Event: " e)
+          s (assoc e :id (str (:id e)) :cid (str (:cid e)) :data (nippy/freeze (:data e)))]
+      (log/info "Prepared for storage: " s)
+      (apply writer-fn (concat (butlast args) [e s])))
+    (catch Exception ex
+        [(error :dev (.getMessage ex) :tag :event-store :data
+                {:ex (data/from-java ex) :ev (last args)})])))
 
 
 (defn command [basis-t type data]
@@ -106,6 +126,7 @@
    [:event/aggregator :command/feedback]])
 
 
+
 (comment
   ;; Failure handling
   [[:command/coerce :error]
@@ -114,6 +135,34 @@
    [:event/aggregator :error]
    [:event/aggregate-store :error]])
 
+(defn handle-error [& [writer-fn & args :as a]]
+  (log/info "Error handle: " a)
+  (apply writer-fn (concat args [(last a)]))
+  [])
+
+(defn error? [segment]
+  (contains? segment :error/msg))
+
+(def not-error? (complement error?))
+
+(defn error-flows [workflow catalog]
+  (concat
+   (map
+    (fn [[f t]]
+      {:conditions
+       [{:flow/from f
+         :flow/to [t]
+         :flow/predicate :cqrs-server.cqrs/not-error?}]})
+    workflow)
+   (map
+    (fn [c]
+      {:conditions
+       [{:flow/from (:onyx/name c)
+         :flow/to [:cqrs/error]
+         :flow/predicate :cqrs-server.cqrs/error?}]
+       :workflow
+       [[(:onyx/name c) :cqrs/error]]})
+    catalog)))
 
 (defn catalog
   [c]
@@ -121,13 +170,11 @@
     (-> c :command/in-queue :entry)
     :onyx/name :command/in-queue
     :onyx/type :input
-    :onyx/consumption :concurrent
     :onyx/batch-size 1)
 
    {:onyx/name :command/coerce
     :onyx/type :function
     :onyx/fn :cqrs-server.cqrs/command-coerce*
-    :onyx/consumption :concurrent
     :onyx/batch-size 1}
 
    (assoc
@@ -135,21 +182,18 @@
     :onyx/name :command/process
     :onyx/type :function
     :onyx/fn :cqrs-server.cqrs/process-command*
-    :onyx/consumption :concurrent
     :onyx/batch-size 1)
 
    (assoc
     (-> c :event/out-queue :entry)
     :onyx/name :event/out-queue
     :onyx/type :output
-    :onyx/consumption :concurrent
     :onyx/batch-size 1)
 
    (assoc
     (-> c :event/in-queue :entry)
     :onyx/name :event/in-queue
     :onyx/type :input
-    :onyx/consumption :concurrent
     :onyx/batch-size 1)
    
    (assoc
@@ -157,7 +201,6 @@
     :onyx/name :event/store
     :onyx/type :function
     :onyx/fn :cqrs-server.cqrs/event-store
-    :onyx/consumption :concurrent
     :onyx/batch-size 1)
 
    (assoc
@@ -165,31 +208,28 @@
     :onyx/name :event/aggregator
     :onyx/type :function
     :onyx/fn :cqrs-server.cqrs/aggregate-event*
-    :onyx/consumption :concurrent
     :onyx/batch-size 1)
 
    (assoc
     (-> c :command/feedback :entry)
     :onyx/name :command/feedback
     :onyx/type :output
-    :onyx/consumption :concurrent
+    :onyx/batch-size 1)
+
+   (assoc
+    (-> c :cqrs/error :entry)
+    :onyx/name :cqrs/error
+    :onyx/type :function
+    :onyx/fn :cqrs-server.cqrs/handle-error
     :onyx/batch-size 1)])
 
-(defn error-flows [workflow catalog]
-  (map
-   (fn [c]
-     {:flow
-      {:flow/from (:onyx/name c)
-       :flow/to :cqrs/error
-       :flow/thrown-exception? true
-       :flow/short-circuit? true
-       :flow/post-transform :cqrs-server.cqrs/error}})
-   catalog))
+
 
 (defn setup [onyxid catalog-map]
-  {:catalog (catalog catalog-map)
-   :workflow command-workflow
-   :onyxid onyxid
-   :catmap catalog-map})
-
-
+  (let [c (catalog catalog-map)
+        flows (error-flows command-workflow (remove #(= (:onyx/name %) :cqrs/error) c))]
+    {:catalog (catalog catalog-map)
+     :workflow (concat command-workflow (mapcat :workflow flows))
+     :conditions (mapcat :conditions flows)
+     :onyxid onyxid
+     :catmap catalog-map}))

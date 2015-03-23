@@ -61,6 +61,9 @@
    :command/feedback (async/stream :output (:feedback-stream config))})
 
 (defn setup-env []
+  (try
+    (far/delete-table local-cred (:tablename local-cred))
+    (catch Exception e nil))
   (dynamo/table-setup local-cred)
   
   (reset! users {})

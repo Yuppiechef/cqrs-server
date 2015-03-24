@@ -2,7 +2,6 @@
   (:require
    [datomic.api :as d]
    [datomic-schema.schema :refer [schema fields]]
-   [onyx.peer.task-lifecycle-extensions :as l-ext]
    [cqrs-server.util :as util :refer [defdbfn]]))
 
 (defdbfn idempotent-tx [db eid tx]
@@ -44,10 +43,3 @@
    {:onyx/params [:datomic/uri-key :datomic/uri]
     :datomic/uri-key :datomic-uri
     :datomic/uri datomic-uri}})
-
-
-
-(defmacro register [ident]
-  `(defmethod l-ext/inject-lifecycle-resources ~ident [~(symbol "_") entry#]
-     {:onyx.core/params
-      [writer (:datomic/uri (:onyx.core/task-map entry#))]}))

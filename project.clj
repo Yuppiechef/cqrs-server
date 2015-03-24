@@ -1,4 +1,4 @@
-(defproject cqrs-server "0.1.1-SNAPSHOT"
+(defproject yuppiechef/cqrs-server "0.1.1-SNAPSHOT"
   :description "Implementation of a simple CQRS server using Onyx"
   :url "https://github.com/Yuppiechef/cqrs-server"
   :license {:name "Eclipse Public License"
@@ -24,8 +24,7 @@
      [datomic-schema "1.2.2"]]}
    :dev
    {:dependencies
-    [
-     [org.slf4j/slf4j-api "1.7.7"]
+    [[org.slf4j/slf4j-api "1.7.7"]
      [zookeeper-clj "0.9.3"]
      [org.apache.zookeeper/zookeeper "3.4.6"]
      [com.mdrogalis/onyx "0.6.0-SNAPSHOT"]

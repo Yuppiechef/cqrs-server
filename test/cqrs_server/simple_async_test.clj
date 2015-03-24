@@ -93,7 +93,7 @@
     (try
       (send-command :user/invalid-command {:name "Bob" :age 33})
       (assert (= (-> @error :error/opts :tag) :command-coerce))
-      (assert (= (-> @error :error/opts :data :cmd :tp) :user/invalid-command))
+      (assert (= (-> @error :error/opts :data :cmd :ctp) :user/invalid-command))
       (assert (= (-> @error :error/level) :dev))
       (assert (nil? @event))
       (assert (nil? @feedback))

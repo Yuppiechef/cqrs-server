@@ -2,9 +2,9 @@
   (:require
    [clj-kafka.core :as k]
    [clj-kafka.producer :as kp]
-   [clj-kafka.consumer.zk :as zk]
-   [onyx.plugin.kafka]
-))
+   [clj-kafka.consumer.zk :as zk]))
+
+;; TODO: needs to be updated with the new setup...
 
 (defn config
   [brokers zkaddress &

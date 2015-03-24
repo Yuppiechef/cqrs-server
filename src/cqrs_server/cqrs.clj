@@ -18,7 +18,8 @@
   :user - user error, provide feedback
   :system - system error (network problems, file writing issues, etc), apply retry strategy and DLQ if not"
   [level msg & {:keys [tag data] :as opts}]
-  {:error/msg msg
+  {:cid (or (-> data :cmd :cid ) (-> data :ev :cid))
+   :error/msg msg
    :error/opts opts
    :error/level level})
 
@@ -36,10 +37,10 @@
         [(error :dev (.getMessage ex) :tag :aggregate-event :data
                 {:ex (data/from-java ex) :ev (last args)})])))
 
-(defmulti command-coerce (fn [{:keys [tp] :as command}] tp))
+(defmulti command-coerce (fn [{:keys [ctp] :as command}] ctp))
 
-(defmethod command-coerce :default [{:keys [tp] :as command}]
-  (error :dev (str "command-coerce for " tp " has not been defined.") :tag :command-coerce :data {:cmd command}))
+(defmethod command-coerce :default [{:keys [ctp] :as command}]
+  (error :dev (str "command-coerce for " ctp " has not been defined.") :tag :command-coerce :data {:cmd command}))
 
 (defn command-coerce* [c]
   (log/info "Coercing: " c)
@@ -67,10 +68,10 @@
 
 
 
-(defmulti process-command (fn [{:keys [tp] :as command}] tp))
+(defmulti process-command (fn [{:keys [ctp] :as command}] ctp))
 
-(defmethod process-command :default [{:keys [tp] :as c}]
-  [(error :dev (str "process-command for " tp " has not been defined.") :tag :process-command :data {:cmd c})])
+(defmethod process-command :default [{:keys [ctp] :as c}]
+  [(error :dev (str "process-command for " ctp " has not been defined.") :tag :process-command :data {:cmd c})])
 
 (defn process-command* [& args]
   (try
@@ -84,7 +85,7 @@
       result)
     (catch Exception ex
         [(error :dev (.getMessage ex) :tag :process-command :data
-                {:ex (data/from-java ex) :cmd command})])))
+                {:ex (data/from-java ex) :cmd (last args)})])))
 
 (defn event-store [& [writer-fn & args :as a]]
   (try
@@ -101,15 +102,15 @@
 
 (defn command [basis-t type data]
   {:t basis-t
-   :tp type
-   :id (str (java.util.UUID/randomUUID))
+   :ctp type
+   :cid (str (java.util.UUID/randomUUID))
    :data data})
 
 (defn event [command segment n [type data]]
   {:id (u/v5 u/+namespace-oid+ (str (:id command) ":" n "/" segment))
    :tp type
-   :cid (:id command)
-   :ctp (:tp command)
+   :cid (:cid command)
+   :ctp (:ctp command)
    :dt (.getTime (java.util.Date.))
    :t (:t command) 
    :data data})

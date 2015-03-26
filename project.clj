@@ -1,4 +1,4 @@
-(defproject yuppiechef/cqrs-server "0.1.2-SNAPSHOT"
+(defproject yuppiechef/cqrs-server "0.1.2"
   :description "Implementation of a simple CQRS server using Onyx"
   :url "https://github.com/Yuppiechef/cqrs-server"
   :license {:name "Eclipse Public License"

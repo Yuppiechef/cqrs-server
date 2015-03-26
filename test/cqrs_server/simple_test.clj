@@ -1,4 +1,4 @@
-(ns cqrs-server.simple
+(ns cqrs-server.simple-test
   (:require
    [clojure.core.async :as a]
    [schema.core :as s]
@@ -90,8 +90,8 @@
 
 (defn setup-test []
   (let [env (environment)
-        ctor-catalog (construct-catalog env catalog)]
-    {:env env :pipeline (build-pipeline flow-conditions ctor-catalog workflow)}))
+        ctor-catalog (simple/construct-catalog env catalog)]
+    {:env env :pipeline (simple/build-pipeline flow-conditions ctor-catalog workflow)}))
 
 (deftest simple []
   (let [s (setup-test)

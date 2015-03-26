@@ -71,12 +71,12 @@
 
 
 (def catalog-map
-  {:command-queue (async/stream :input)
-   :out-event-queue (async/stream :output)
-   :in-event-queue (async/stream :input)
-   :event-store (dynamo/catalog local-cred)
-   :aggregator (async/stream :fn)
-   :feedback (async/stream :output)})
+  {:command/in-queue (async/stream :input (:command-stream config))
+   :event/out-queue (async/stream :output (:event-stream config))
+   :event/in-queue (async/stream :input (:event-stream config))
+   :event/store (dynamo/catalog local-cred)
+   :event/aggregator (async/stream :fn (:aggregator config))
+   :command/feedback (async/stream :output (:feedback-stream config))})
 
 (defn setup-env []
   (dynamo/table-setup local-cred)
@@ -103,7 +103,7 @@
   true)
 
 (defn command [type data]
-  (cqrs/command 1 type data))
+  (cqrs/command "123" 1 type data))
 
 (defn send-command [type data]
   (a/>!! @(:command-stream config) (command type data)))

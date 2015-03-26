@@ -97,7 +97,7 @@
   true)
 
 (defn send-command [type data]
-  (a/>!! @(:command-stream config) (cqrs/command (d/basis-t (d/db (d/connect (:datomic-uri config)))) type data)))
+  (a/>!! @(:command-stream config) (cqrs/command "123" (d/basis-t (d/db (d/connect (:datomic-uri config)))) type data)))
 
 (deftest run-test []
   (let [env (setup-env db-schema)

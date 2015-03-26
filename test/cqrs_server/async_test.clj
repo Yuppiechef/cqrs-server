@@ -86,7 +86,7 @@
   true)
 
 (defn send-command [type data]
-  (a/>!! @(:command-stream config) (cqrs/command 1 type data)))
+  (a/>!! @(:command-stream config) (cqrs/command "123" 1 type data)))
 
 ;; Need onyx dep to run
 (defn run-test []

@@ -5,7 +5,9 @@
    [schema.core :as s]
    [cqrs-server.async :as async]
    [cqrs-server.cqrs :as cqrs]
+   [cqrs-server.onyx :as onyx]
    [cqrs-server.datomic :as datomic]
+   [cqrs-server.dynamo :as dynamo]
    
    [onyx.api]
    [onyx.plugin.core-async]
@@ -59,6 +61,12 @@
    :channels [:command-stream :event-stream :feedback-stream]
    :datomic-uri "datomic:mem://cqrs"})
 
+(def local-cred
+  {:access-key "aws-access-key"
+   :secret-key "aws-secret-key"
+   :endpoint   "http://localhost:8000"
+   :tablename :eventstore})
+
 (def catalog-map
   {:command/in-queue (async/stream :input (:command-stream config))
    :command/process (datomic/command-processor (:datomic-uri config))
@@ -76,7 +84,7 @@
   (doseq [c (:channels config)]
     (reset! (get config c) (a/chan 10)))
   (let [setup (cqrs/setup (java.util.UUID/randomUUID) catalog-map)]
-    {:onyx (cqrs/start-onyx setup env-config peer-config)}))
+    {:onyx (onyx/start setup env-config peer-config)}))
 
 (defn stop-env [env]
   ((-> env :onyx :shutdown))
@@ -86,7 +94,7 @@
   true)
 
 (defn command [type data]
-  (cqrs/command (d/basis-t (d/db (d/connect (:datomic-uri config)))) type data))
+  (cqrs/command "123" (d/basis-t (d/db (d/connect (:datomic-uri config)))) type data))
 
 (defn send-command [type data]
   (a/>!! @(:command-stream config) (command type data)))

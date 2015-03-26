@@ -100,15 +100,17 @@
                 {:ex (data/from-java ex) :ev (last args)})])))
 
 
-(defn command [basis-t type data]
+(defn command [code-sha basis-t type data]
   {:t basis-t
+   :sha (or code-sha "NA")
    :ctp type
    :cid (str (java.util.UUID/randomUUID))
    :data data})
 
 (defn event [command segment n [type data]]
-  {:id (u/v5 u/+namespace-oid+ (str (:id command) ":" n "/" segment))
+  {:id (u/v5 u/+namespace-oid+ (str (:cid command) ":" n "/" segment))
    :tp type
+   :sha (or (:sha command) "NA")
    :cid (:cid command)
    :ctp (:ctp command)
    :dt (.getTime (java.util.Date.))

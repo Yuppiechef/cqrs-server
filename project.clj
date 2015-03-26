@@ -1,4 +1,4 @@
-(defproject yuppiechef/cqrs-server "0.1.1-SNAPSHOT"
+(defproject yuppiechef/cqrs-server "0.1.2-SNAPSHOT"
   :description "Implementation of a simple CQRS server using Onyx"
   :url "https://github.com/Yuppiechef/cqrs-server"
   :license {:name "Eclipse Public License"
@@ -12,16 +12,15 @@
    [org.clojure/data.json "0.2.5"]
    [commons-codec "1.9"]
    [org.clojure/core.async "0.1.346.0-17112a-alpha"]
-   [joda-time/joda-time "2.7"]]
+   [joda-time/joda-time "2.7"]
+   [datomic-schema "1.3.0"]]
   :profiles
   {:datomic-free
    {:dependencies
-    [[com.datomic/datomic-free "0.9.5153" :exclusions [org.slf4j/slf4j-nop org.slf4j/log4j-over-slf4j]]
-     [datomic-schema "1.2.2"]]}
+    [[com.datomic/datomic-free "0.9.5153" :exclusions [org.slf4j/slf4j-nop org.slf4j/log4j-over-slf4j]]]}
    :datomic-pro
    {:dependencies
-    [[com.datomic/datomic-pro "0.9.5153" :exclusions [org.slf4j/slf4j-nop org.slf4j/log4j-over-slf4j]]
-     [datomic-schema "1.2.2"]]}
+    [[com.datomic/datomic-pro "0.9.5153" :exclusions [org.slf4j/slf4j-nop org.slf4j/log4j-over-slf4j]]]}
    :dev
    {:dependencies
     [[org.slf4j/slf4j-api "1.7.7"]

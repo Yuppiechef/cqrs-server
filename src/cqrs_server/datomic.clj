@@ -1,8 +1,7 @@
 (ns cqrs-server.datomic
   (:require
    [datomic.api :as d]
-   [datomic-schema.schema :refer [schema fields]]
-   [cqrs-server.util :as util :refer [defdbfn]]))
+   [datomic-schema.schema :refer [schema fields defdbfn]]))
 
 (defdbfn idempotent-tx [db eid tx]
   (if-not (datomic.api/entity db [:event/uuid eid])

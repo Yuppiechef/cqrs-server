@@ -76,7 +76,7 @@
   (d/create-database (:datomic-uri config))
   (d/transact
    (d/connect (:datomic-uri config))
-   (ds/generate-schema d/tempid (concat datomic/db-schema db-schema)))
+   (ds/generate-schema (concat datomic/db-schema db-schema)))
   
   (doseq [c (:channels config)]
     (reset! (get config c) (a/chan 10)))

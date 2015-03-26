@@ -8,7 +8,6 @@
    [cqrs-server.async :as async]
    [cqrs-server.cqrs :as cqrs]
    [cqrs-server.kafka :as kafka]
-   [onyx.peer.task-lifecycle-extensions :as l-ext]
    [clj-kafka.producer :as kp]
    [clj-kafka.consumer.zk :as zk]
    [clj-kafka.core :as k]
@@ -67,7 +66,7 @@
         peers (onyx.api/start-peers! 10 pconfig)
         dturi (:datomic-uri config)]
     (d/create-database dturi)
-    (d/transact (d/connect dturi) (ds/generate-schema d/tempid db-schema))
+    (d/transact (d/connect dturi) (ds/generate-schema db-schema))
     (reset! cqrs/datomic-uri dturi)
     {:env env
      :pconfig pconfig

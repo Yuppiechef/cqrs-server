@@ -88,7 +88,8 @@
 (defn send-command [type data]
   (a/>!! @(:command-stream config) (cqrs/command 1 type data)))
 
-(deftest run-test []
+;; Need onyx dep to run
+(defn run-test []
   (let [env (setup-env)
         _ (-> env :onyx :started-latch deref)
         event (delay (first (a/alts!! [@(:event-store-stream config) (a/timeout 2000)])))

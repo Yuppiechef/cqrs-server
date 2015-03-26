@@ -3,11 +3,11 @@
    [datomic.api :as d]
    [datomic-schema.schema :refer [schema fields defdbfn]]))
 
-(defdbfn idempotent-tx [db eid tx]
+(defdbfn idempotent-tx [db eid tx] :db.part/user
   (if-not (datomic.api/entity db [:event/uuid eid])
     (concat [[:db/add (datomic.api/tempid :db.part/tx) :event/uuid eid]] tx) []))
 
-(defdbfn add [db entid attr value]
+(defdbfn add [db entid attr value] :db.part/user
   (let [ent (datomic.api/entity db entid)]
     (if ent
       [{:db/id entid attr (+ (or (get ent attr) 0) value)}] [])))

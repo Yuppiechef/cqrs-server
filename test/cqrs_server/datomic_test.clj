@@ -91,7 +91,8 @@
 (defn send-command [type data]
   (a/>!! @(:command-stream config) (command type data)))
 
-(deftest run-test []
+;; Need onyx & zookeeper
+(defn run-test []
   (let [env (setup-env db-schema)
         event (delay (first (a/alts!! [@(:event-store-stream config) (a/timeout 1000)])))
         feedback (delay (first (a/alts!! [@(:feedback-stream config) (a/timeout 2000)])))]

@@ -78,14 +78,6 @@
    :aggregator (async/stream :fn)
    :feedback (async/stream :output)})
 
-
-(onyx/lifecycle-resource :command/in-queue (async/lifecycle (:command-stream config)))
-(onyx/lifecycle-resource :event/out-queue (async/lifecycle (:event-stream config)))
-(onyx/lifecycle-resource :event/in-queue (async/lifecycle (:event-stream config)))
-(onyx/lifecycle-resource :event/aggregator (async/lifecycle (:aggregator config)))
-(onyx/lifecycle-resource :command/feedback (async/lifecycle (:feedback-stream config)))
-(onyx/lifecycle-resource :event/store (dynamo/lifecycle))
-
 (defn setup-env []
   (dynamo/table-setup local-cred)
   
@@ -116,7 +108,8 @@
 (defn send-command [type data]
   (a/>!! @(:command-stream config) (command type data)))
 
-(deftest run-test []
+;; Needs onyx, zookeeper & dynamodb local to run
+(defn run-test []
   (let [env (setup-env)
         _ (-> env :onyx :started-latch deref)
         feedback (delay (first (a/alts!! [@(:feedback-stream config) (a/timeout 2000)])))]

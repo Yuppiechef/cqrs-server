@@ -88,7 +88,8 @@
 (defn send-command [type data]
   (a/>!! @(:command-stream config) (cqrs/command 1 type data)))
 
-(deftest run-test []
+;; Requires dynamo local
+(defn run-test []
   (let [env (setup-env)
         feedback (delay (first (a/alts!! [@(:feedback-stream config) (a/timeout 2000)])))]
     (try

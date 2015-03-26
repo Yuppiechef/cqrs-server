@@ -19,6 +19,27 @@
    [clojure.test :refer :all]
    [taoensso.timbre :as log]))
 
+;; Simple testing module 
+(def users (atom {})) ;; Our super lightweight 'database'
+(defn setup-aggregate-chan [chan]
+  (a/go-loop []
+    (when-let [msg (a/<! chan)]
+      (doseq [u msg]
+        (swap! users assoc (:name u) u))
+      (recur))))
+
+(cqrs/install-commands
+  {:user/register {:name s/Str :age s/Int}})
+
+;; :user/create
+(defmethod cqrs/process-command :user/register [{:keys [data] :as c}]
+  (if (get @users (:name data))
+    (cqrs/events c 0 [[:user/register-failed data]])
+    (cqrs/events c 1 [[:user/registered data]])))
+
+(defmethod cqrs/aggregate-event :user/registered [{:keys [data] :as e}]
+  [{:name (:name data)
+    :age (:age data)}])
 
 (def env-config
   {:hornetq/mode :vm
@@ -59,6 +80,9 @@
 (defn setup-env [db-schema]
   (doseq [c (:channels config)]
     (reset! (get config c) (a/chan 10)))
+  
+  (setup-aggregate-chan @(:aggregator config))
+  
   (let [onyxid (java.util.UUID/randomUUID)
         penv (assoc env-config :onyx/id onyxid)
         pconfig (assoc peer-config :onyx/id onyxid)
@@ -100,7 +124,8 @@
       [uuid :uuid :unique-identity]))]
    module/db-schema))
 
-(deftest run-test []
+;; Needs onyx, zookeeper & kafka
+(defn run-test []
   (let [env (setup-env db-schema)
         event (delay (first (a/alts!! [@(:event-store-stream config) (a/timeout 1000)])))
         aggregate (delay (first (a/alts!! [@(:aggregate-out-stream config) (a/timeout 1000)])))]

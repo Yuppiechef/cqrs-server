@@ -14,7 +14,7 @@
    
    [clojure.core.async :as a]
    [clojure.test :refer :all]
-   [taoensso.timbre :as log]))
+   [clojure.tools.logging :as log]))
 
 ;; First, lets define the most basic module
 (def db-schema

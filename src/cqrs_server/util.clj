@@ -1,8 +1,6 @@
 (ns cqrs-server.util
   (:require
-   [datomic.api]
-   [datomic.function :as df]
-   [taoensso.timbre :as log]
+   [clojure.tools.logging :as log]
    
    [schema.coerce :as coerce]
    [schema.macros :as macros]
@@ -17,7 +15,7 @@
   `(let ~binding
      (try
        (do (log/info "Starting resource: " ~(pr-str body)) ~@body)
-       (catch Exception e# (log/info "Exception" (str e#) (log/stacktrace e#)))
+       (catch Exception e# (log/info "Exception" (str e#) (log/error e# "Problem inside with-resource")))
        (finally
          (log/info "closing resource: " ~(pr-str body))
          (~close-fn ~(binding 0))))))

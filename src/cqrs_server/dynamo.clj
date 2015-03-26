@@ -1,6 +1,6 @@
 (ns cqrs-server.dynamo
   (:require
-   [taoensso.timbre :as log]
+   [clojure.tools.logging :as log]
    [taoensso.faraday :as far]))
 
 ;; A sample of the dynamodb credentials.

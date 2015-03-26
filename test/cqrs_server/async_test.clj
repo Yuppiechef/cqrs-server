@@ -8,7 +8,7 @@
 
    [onyx.plugin.core-async]
    [clojure.test :refer :all]
-   [taoensso.timbre :as log]))
+   [clojure.tools.logging :as log]))
 
 ;; A fully self-contained cqrs test, with in-memory zookeeper using only async channels.
 ;; This differs from the other tests in that it uses internal zookeeper - the rest use seperate

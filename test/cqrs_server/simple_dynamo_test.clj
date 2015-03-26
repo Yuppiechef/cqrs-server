@@ -4,7 +4,7 @@
    
    [clojure.core.async :as a]
    [clojure.test :refer :all]
-   [taoensso.timbre :as log]
+   [clojure.tools.logging :as log]
    [taoensso.faraday :as far]
    [taoensso.nippy :as nippy]
    

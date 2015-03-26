@@ -1,6 +1,6 @@
 (ns cqrs-server.async
   (:require
-   [taoensso.timbre :as log]
+   [clojure.tools.logging :as log]
    [clojure.core.async :as a]))
 
 (defn writer [chan e s]

@@ -1,7 +1,7 @@
 (ns cqrs-server.onyx
   (:require
    [onyx.api]
-   [taoensso.timbre :as log]
+   [clojure.tools.logging :as log]
    [cqrs-server.util :as util]
    [onyx.peer.task-lifecycle-extensions :as l-ext]))
 

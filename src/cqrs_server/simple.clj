@@ -1,6 +1,6 @@
 (ns cqrs-server.simple
   (:require
-   [taoensso.timbre :as log]
+   [clojure.tools.logging :as log]
    [clojure.core.async :as a]
    [clojure.java.data :as data]))
 

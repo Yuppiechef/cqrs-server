@@ -5,6 +5,7 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies
   [[org.clojure/clojure "1.7.0-alpha5"]
+   [org.clojure/tools.logging "0.3.1"]
    [org.clojure/java.data "0.1.1"]
    [prismatic/schema "0.4.0"]
    [danlentz/clj-uuid "0.1.5"]
@@ -33,5 +34,6 @@
      [criterium "0.4.3"]
      [com.mdrogalis/onyx-kafka "0.5.3" :exclusions [org.slf4j/slf4j-simple]]
      [com.cemerick/pomegranate "0.3.0"]]}}
+  :aot [cqrs-server.cqrs]
   #_:repl-options #_{ :init-ns cqrs-server.core :timeout 120000}
   #_:main #_cqrs-server.core)

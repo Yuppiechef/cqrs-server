@@ -2,7 +2,7 @@
   (:require
    [cqrs-server.util :as util]
    [clojure.core.async :as a]
-   [taoensso.timbre :as log]
+   [clojure.tools.logging :as log]
    [taoensso.nippy :as nippy]
    [schema.core :as s]
    [schema.coerce :as coerce]

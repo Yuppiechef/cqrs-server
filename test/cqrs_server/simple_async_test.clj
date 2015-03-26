@@ -7,7 +7,7 @@
    [cqrs-server.cqrs :as cqrs]
 
    [clojure.test :refer :all]
-   [taoensso.timbre :as log]))
+   [clojure.tools.logging :as log]))
 
 ;; This test uses the simple mode that emulates onyx, but is completely non-distributed.
 

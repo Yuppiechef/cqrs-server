@@ -245,6 +245,7 @@ We have shown a functional distillation of CQRS. We've composed various pieces o
 ## Further Reading
 Some related reading that influenced this design, in no particular order:
 
+ - [Reimagining our front-end architecture at Yuppiechef.com](https://medium.com/@ohthatjonathan/reimagining-our-front-end-architecture-at-yuppiechef-com-b1782fc4c392)
  - [CQS on Wikipedia](http://en.wikipedia.org/wiki/Command-query_separation)
  - [CQRS Documents by Greg Young](https://cqrs.files.wordpress.com/2010/11/cqrs_documents.pdf)
  - [Martin Fowler: Command Query Separation](http://martinfowler.com/bliki/CommandQuerySeparation.html)
@@ -253,4 +254,4 @@ Some related reading that influenced this design, in no particular order:
  - [Martin Fowler: Event Sourcing](http://martinfowler.com/eaaDev/EventSourcing.html)
  - [DDD, Event Sourcing, and CQRS Tutorial: design](http://cqrs.nu/tutorial/cs/01-design)
  - [CQRS Journey](http://msdn.microsoft.com/en-us/library/jj554200.aspx)
- - [Martin Kleppmann: Stream Processing, Event Sourcing, Reactive, CEP, And making sense of it all](http://blog.confluent.io/2015/01/29/making-sense-of-stream-processing/)  
+ - [Martin Kleppmann: Stream Processing, Event Sourcing, Reactive, CEP, And making sense of it all](http://blog.confluent.io/2015/01/29/making-sense-of-stream-processing/) 

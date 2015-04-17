@@ -127,13 +127,13 @@
 
 <p>This gives Onyx enough information to know where to send batches, but not enough to know what the places are. For that, it needs a catalog. In the case of <em>cqrs-server</em> it looks like: <em>(we've elided many specifics for the clarity)</em></p>
 
-<div class="highlight highlight-clojure"><pre>=&gt; (pprint catalog)
+<div class="highlight highlight-clojure"><pre>=&gt; (<span class="pl-en">pprint</span> catalog)
 [{<span class="pl-c1">:onyx/name</span> :command/in-queue,
   <span class="pl-c1">:onyx/medium</span> :kafka,
   <span class="pl-c1">:onyx/ident</span> :kafka/read-messages,
   <span class="pl-c1">:onyx/type</span> :input,
-  <span class="pl-c1">:kafka/zookeeper</span> <span class="pl-s1"><span class="pl-pds">"</span>127.0.0.1:2181<span class="pl-pds">"</span></span>,
-  <span class="pl-c1">:kafka/topic</span> <span class="pl-s1"><span class="pl-pds">"</span>command-queue<span class="pl-pds">"</span></span>}
+  <span class="pl-c1">:kafka/zookeeper</span> <span class="pl-s"><span class="pl-pds">"</span>127.0.0.1:2181<span class="pl-pds">"</span></span>,
+  <span class="pl-c1">:kafka/topic</span> <span class="pl-s"><span class="pl-pds">"</span>command-queue<span class="pl-pds">"</span></span>}
 
  {<span class="pl-c1">:onyx/name</span> :command/coerce,
   <span class="pl-c1">:onyx/type</span> :function,
@@ -147,15 +147,15 @@
   <span class="pl-c1">:onyx/medium</span> :kafka,
   <span class="pl-c1">:onyx/ident</span> :kafka/write-messages,
   <span class="pl-c1">:onyx/type</span> :output,
-  <span class="pl-c1">:kafka/topic</span> <span class="pl-s1"><span class="pl-pds">"</span>event-queue<span class="pl-pds">"</span></span>,
-  <span class="pl-c1">:kafka/brokers</span> <span class="pl-s1"><span class="pl-pds">"</span>127.0.0.1:9092<span class="pl-pds">"</span></span>}
+  <span class="pl-c1">:kafka/topic</span> <span class="pl-s"><span class="pl-pds">"</span>event-queue<span class="pl-pds">"</span></span>,
+  <span class="pl-c1">:kafka/brokers</span> <span class="pl-s"><span class="pl-pds">"</span>127.0.0.1:9092<span class="pl-pds">"</span></span>}
 
  {<span class="pl-c1">:onyx/name</span> :event/in-queue,
   <span class="pl-c1">:onyx/ident</span> :kafka/read-messages,
   <span class="pl-c1">:onyx/medium</span> :kafka,
   <span class="pl-c1">:onyx/type</span> :input,
-  <span class="pl-c1">:kafka/zookeeper</span> <span class="pl-s1"><span class="pl-pds">"</span>127.0.0.1:2181<span class="pl-pds">"</span></span>,
-  <span class="pl-c1">:kafka/topic</span> <span class="pl-s1"><span class="pl-pds">"</span>event-queue<span class="pl-pds">"</span></span>}
+  <span class="pl-c1">:kafka/zookeeper</span> <span class="pl-s"><span class="pl-pds">"</span>127.0.0.1:2181<span class="pl-pds">"</span></span>,
+  <span class="pl-c1">:kafka/topic</span> <span class="pl-s"><span class="pl-pds">"</span>event-queue<span class="pl-pds">"</span></span>}
 
  {<span class="pl-c1">:onyx/name</span> :event/prepare-store,
   <span class="pl-c1">:onyx/type</span> :function,
@@ -167,9 +167,9 @@
   <span class="pl-c1">:onyx/medium</span> :dynamodb,
   <span class="pl-c1">:dynamodb/table</span> :events,
   <span class="pl-c1">:dynamodb/config</span>
-  {<span class="pl-c1">:access-key</span> <span class="pl-s1"><span class="pl-pds">"</span>aws-access-key<span class="pl-pds">"</span></span>,
-   <span class="pl-c1">:secret-key</span> <span class="pl-s1"><span class="pl-pds">"</span>aws-secret-key<span class="pl-pds">"</span></span>,
-   <span class="pl-c1">:endpoint</span> <span class="pl-s1"><span class="pl-pds">"</span>http://localhost:8000<span class="pl-pds">"</span></span>}}
+  {<span class="pl-c1">:access-key</span> <span class="pl-s"><span class="pl-pds">"</span>aws-access-key<span class="pl-pds">"</span></span>,
+   <span class="pl-c1">:secret-key</span> <span class="pl-s"><span class="pl-pds">"</span>aws-secret-key<span class="pl-pds">"</span></span>,
+   <span class="pl-c1">:endpoint</span> <span class="pl-s"><span class="pl-pds">"</span>http://localhost:8000<span class="pl-pds">"</span></span>}}
 
  {<span class="pl-c1">:onyx/name</span> :event/aggregator,
   <span class="pl-c1">:onyx/type</span> :function,
@@ -179,7 +179,7 @@
   <span class="pl-c1">:onyx/ident</span> :datomic/commit-tx,
   <span class="pl-c1">:onyx/type</span> :output,
   <span class="pl-c1">:onyx/medium</span> :datomic-tx,
-  <span class="pl-c1">:datomic/uri</span> <span class="pl-s1"><span class="pl-pds">"</span>datomic:mem://cqrs<span class="pl-pds">"</span></span>}]</pre></div>
+  <span class="pl-c1">:datomic/uri</span> <span class="pl-s"><span class="pl-pds">"</span>datomic:mem://cqrs<span class="pl-pds">"</span></span>}]</pre></div>
 
 <p>Onyx manages the lifecycle of each of the components defined in the catalog. As messages progress through the workflow it uses the <code>:onyx/name</code> to lookup the component.</p>
 
@@ -231,12 +231,12 @@ bin/kafka-server-start.sh config/server.properties</pre></div>
 <p>Finally, clone <em>cqrs-server</em> and run:</p>
 
 <div class="highlight highlight-bash"><pre>git clone https://github.com/Yuppiechef/cqrs-server.git
-<span class="pl-s3">cd</span> cqrs-server
+<span class="pl-c1">cd</span> cqrs-server
 lein repl</pre></div>
 
 <p>After a bit of compiling you should have a REPL waiting, run the following function:</p>
 
-<div class="highlight highlight-clojure"><pre>(start)</pre></div>
+<div class="highlight highlight-clojure"><pre>(<span class="pl-en">start</span>)</pre></div>
 
 <p>It should give you a <code>"Setup Complete"</code> message once it's done and ready to start taking commands. Go open the <code>src/cqrs_server/module.clj</code> file and have a look.</p>
 
@@ -258,18 +258,18 @@ lein repl</pre></div>
 
 <p>Back in your REPL, try register a user and check that he exists:</p>
 
-<div class="highlight highlight-clojure"><pre>=&gt; (send-command <span class="pl-c1">:user/register</span> {<span class="pl-c1">:name</span> <span class="pl-s1"><span class="pl-pds">"</span>Bob<span class="pl-pds">"</span></span> <span class="pl-c1">:age</span> <span class="pl-c1">31</span>})</pre></div>
+<div class="highlight highlight-clojure"><pre>=&gt; (<span class="pl-en">send-command</span> <span class="pl-c1">:user/register</span> {<span class="pl-c1">:name</span> <span class="pl-s"><span class="pl-pds">"</span>Bob<span class="pl-pds">"</span></span> <span class="pl-c1">:age</span> <span class="pl-c1">31</span>})</pre></div>
 
 <p>This will fire off the user registration - check that it worked:</p>
 
-<div class="highlight highlight-clojure"><pre>=&gt; (d/q '[<span class="pl-c1">:find</span> [?e ...] <span class="pl-c1">:where</span> [?e <span class="pl-c1">:user/name</span>]] (d/db (d/connect datomic-uri)))
+<div class="highlight highlight-clojure"><pre>=&gt; (<span class="pl-en">d/q</span> '[<span class="pl-c1">:find</span> [?e ...] <span class="pl-c1">:where</span> [?e <span class="pl-c1">:user/name</span>]] (<span class="pl-en">d/db</span> (<span class="pl-en">d/connect</span> datomic-uri)))
 <span class="pl-c">;; [17592186045422]</span>
-=&gt; (map #(d/touch (d/entity (d/db (d/connect datomic-uri)) %)) *<span class="pl-c1">1</span>)
+=&gt; (<span class="pl-en">map</span> #(<span class="pl-en">d/touch</span> (<span class="pl-en">d/entity</span> (<span class="pl-en">d/db</span> (<span class="pl-en">d/connect</span> datomic-uri)) %)) *1)
 <span class="pl-c">;; ({:base/uuid #uuid "54d8fc2e-6c1f-4fb6-93f9-bef9536a9f7d", :user/age 31, :user/name "Bob", :db/id 17592186045422})</span></pre></div>
 
 <p>You can then check your dynamodb event store:</p>
 
-<div class="highlight highlight-clojure"><pre>=&gt; (far/scan dynamodb-cred <span class="pl-c1">:events</span>)
+<div class="highlight highlight-clojure"><pre>=&gt; (<span class="pl-en">far/scan</span> dynamodb-cred <span class="pl-c1">:events</span>)
 <span class="pl-c">;; [{:date 1423510153513N, :data #&lt;byte[] ...&gt;, :basis-t 1000N, :id "be856c9c-0bf8-5ccc-bec1-bfa0f5a7e983", :type "user/registered"}]</span></pre></div>
 
 <p>You can go ahead and play around with sending the other commands in the <code>module.clj</code> and see how they affect things. Also try create new commands and event aggregators - there's not much to it.</p>
@@ -292,6 +292,7 @@ lein repl</pre></div>
 <p>Some related reading that influenced this design, in no particular order:</p>
 
 <ul>
+<li><a href="https://medium.com/@ohthatjonathan/reimagining-our-front-end-architecture-at-yuppiechef-com-b1782fc4c392">Reimagining our front-end architecture at Yuppiechef.com</a></li>
 <li><a href="http://en.wikipedia.org/wiki/Command-query_separation">CQS on Wikipedia</a></li>
 <li><a href="https://cqrs.files.wordpress.com/2010/11/cqrs_documents.pdf">CQRS Documents by Greg Young</a></li>
 <li><a href="http://martinfowler.com/bliki/CommandQuerySeparation.html">Martin Fowler: Command Query Separation</a></li>
@@ -308,7 +309,7 @@ lein repl</pre></div>
     <div id="footer_wrap" class="outer">
       <footer class="inner">
         <p class="copyright">Cqrs-server maintained by <a href="https://github.com/Yuppiechef">Yuppiechef</a></p>
-        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+        <p>Published with <a href="https://pages.github.com">GitHub Pages</a></p>
       </footer>
     </div>
 

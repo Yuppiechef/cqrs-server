@@ -1,4 +1,4 @@
-(ns cqrs-server.dynamo-test
+(ns cqrs-server.simple-dynamo-test
   (:require
    [schema.core :as s]
    

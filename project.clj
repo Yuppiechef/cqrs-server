@@ -1,4 +1,4 @@
-(defproject yuppiechef/cqrs-server "0.1.3"
+(defproject yuppiechef/cqrs-server "0.1.4"
   :description "Implementation of a simple CQRS server using Onyx"
   :url "https://github.com/Yuppiechef/cqrs-server"
   :license {:name "Eclipse Public License"
@@ -24,7 +24,11 @@
     [[com.datomic/datomic-pro "0.9.5153" :exclusions [org.slf4j/slf4j-nop org.slf4j/log4j-over-slf4j]]]}
    :test
    {:dependencies
-    [[org.slf4j/slf4j-api "1.7.12"]
+    [[com.datomic/datomic-free "0.9.5153" :exclusions [org.slf4j/slf4j-nop org.slf4j/log4j-over-slf4j]]
+     [com.amazonaws/aws-java-sdk-core "1.9.30" :exclusions [joda-time]]
+     [com.amazonaws/aws-java-sdk-dynamodb "1.9.30" :exclusions [joda-time]]
+     [com.amazonaws/aws-java-sdk-s3 "1.9.30"  :exclusions [joda-time]]
+     [org.slf4j/slf4j-api "1.7.12"]
      [zookeeper-clj "0.9.3"]
      [org.apache.zookeeper/zookeeper "3.4.6"]
      [com.mdrogalis/onyx "0.6.0-SNAPSHOT"]

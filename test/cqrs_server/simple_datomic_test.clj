@@ -1,4 +1,4 @@
-(ns cqrs-server.datomic-test
+(ns cqrs-server.simple-datomic-test
   (:require
    [datomic.api :as d]
    [datomic-schema.schema :as ds :refer [schema fields part]]

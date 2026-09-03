@@ -1,4 +1,4 @@
-# cqrs-server
+# cqrs-server (Archived)
 
 An opinionated CQRS/ES implementation using Onyx, Datomic, DynamoDB, Kafka and Zookeeper.
 
